@@ -72,7 +72,7 @@ export function SolvingInterfacePage() {
   }, [topicData, problem, slug, setBreadcrumb]);
 
   /* ── Neural assistant hook ── */
-  const { messages, isThinking, askHint } = useNeuralAssistant(
+  const { messages, isThinking, askHint, stopGenerating } = useNeuralAssistant(
     problem
       ? { questionText: problem.questionText, options: problem.options, hintText: problem.hintText }
       : { questionText: '', options: [], hintText: '' }
@@ -108,7 +108,7 @@ export function SolvingInterfacePage() {
   /* ── Ask assistant ── */
   const handleAsk = async () => {
     const q = assistantInput.trim();
-    if (!q) return;
+    if (!q || isThinking) return;
     setAssistantInput('');
     await askHint(q);
   };
@@ -317,14 +317,21 @@ export function SolvingInterfacePage() {
             <input
               className="input"
               style={{ fontSize: '0.875rem' }}
-              placeholder="Ask anything about this problem…"
+              placeholder={isThinking ? "AI is generating response…" : "Ask anything about this problem…"}
               value={assistantInput}
+              disabled={isThinking}
               onChange={e => setAssistantInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleAsk()}
+              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && !isThinking && handleAsk()}
             />
-            <button className="btn btn-primary btn-sm" onClick={handleAsk}>
-              Ask
-            </button>
+            {isThinking ? (
+              <button className="btn btn-danger btn-sm" onClick={stopGenerating} title="Stop generating">
+                Stop
+              </button>
+            ) : (
+              <button className="btn btn-primary btn-sm" onClick={handleAsk} disabled={!assistantInput.trim()}>
+                Ask
+              </button>
+            )}
           </div>
         </div>
       </div>

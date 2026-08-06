@@ -216,13 +216,31 @@ export function CodingIDEPage() {
   }, [problem, currentCode, language, token]);
 
   /* ── Ask AI ── */
+  const aiAbortControllerRef = useRef(null);
+
+  const stopAiGenerating = useCallback(() => {
+    if (aiAbortControllerRef.current) {
+      aiAbortControllerRef.current.abort();
+      aiAbortControllerRef.current = null;
+    }
+    setIsAiThinking(false);
+  }, []);
+
   const askAI = useCallback(async () => {
     const q = aiInput.trim();
-    if (!q || !problem) return;
+    if (!q || !problem || isAiThinking) return;
+
+    stopAiGenerating();
+
+    const controller = new AbortController();
+    aiAbortControllerRef.current = controller;
+
     setAiMessages(prev => [...prev, { id: `u-${Date.now()}`, role: 'user', text: q }]);
     setAiInput('');
     setIsAiThinking(true);
+
     try {
+      const chatHistory = aiMessages.slice(-6).map(m => `${m.role === 'user' ? 'Student' : 'Assistant'}: ${m.text}`);
       const res = await apiRequest('/api/dsa/neural-pair-programmer', {
         method: 'POST', token,
         body: {
@@ -232,16 +250,24 @@ export function CodingIDEPage() {
             pattern: problem.pattern, difficulty: problem.difficulty, hintText: problem.hintText },
           errorReport: runReport
             ? `Run status: ${runReport.status}, passed: ${runReport.totalPassed}/${runReport.totalCases}`
-            : 'No run yet'
+            : 'No run yet',
+          chatHistory
         }
       });
-      await streamMessageInto(`a-${Date.now()}`, res.data.analysis, setAiMessages);
+
+      if (controller.signal.aborted) return;
+
+      await streamMessageInto(`a-${Date.now()}`, res.data.analysis, setAiMessages, { signal: controller.signal });
     } catch (e) {
+      if (controller.signal.aborted) return;
       setAiMessages(prev => [...prev, { id: `e-${Date.now()}`, role: 'assistant', text: e.message || 'Unable to fetch hint' }]);
     } finally {
-      setIsAiThinking(false);
+      if (aiAbortControllerRef.current === controller) {
+        aiAbortControllerRef.current = null;
+        setIsAiThinking(false);
+      }
     }
-  }, [aiInput, problem, currentCode, token, runReport]);
+  }, [aiInput, problem, currentCode, token, runReport, isAiThinking, stopAiGenerating]);
 
   /* ── Keyboard shortcut: Ctrl/Cmd + Enter = Run ── */
   const handleEditorKeyDown = useCallback(e => {
@@ -600,12 +626,21 @@ export function CodingIDEPage() {
                     <input
                       className="input"
                       style={{ fontSize: '0.8rem' }}
-                      placeholder="Ask for a hint…"
+                      placeholder={isAiThinking ? "AI is generating response…" : "Ask for a hint…"}
                       value={aiInput}
+                      disabled={isAiThinking}
                       onChange={e => setAiInput(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && !e.shiftKey && askAI()}
+                      onKeyDown={e => e.key === 'Enter' && !e.shiftKey && !isAiThinking && askAI()}
                     />
-                    <button className="btn btn-primary btn-sm" onClick={askAI}>Ask</button>
+                    {isAiThinking ? (
+                      <button className="btn btn-danger btn-sm" onClick={stopAiGenerating} title="Stop generating">
+                        Stop
+                      </button>
+                    ) : (
+                      <button className="btn btn-primary btn-sm" onClick={askAI} disabled={!aiInput.trim()}>
+                        Ask
+                      </button>
+                    )}
                   </div>
                 </div>
               </Panel>

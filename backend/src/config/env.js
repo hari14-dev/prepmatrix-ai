@@ -1,6 +1,10 @@
 import { config } from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-config();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+config({ path: path.resolve(__dirname, '../../.env') });
+config(); // fallback to current working dir
 
 const rawPort = process.env.PORT;
 const parsedPort = Number(rawPort);

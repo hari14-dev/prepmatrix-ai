@@ -86,7 +86,7 @@ export function CoreSubjectSolvingInterfacePage() {
     return () => setBreadcrumb([]);
   }, [topicData, problem, slug, setBreadcrumb]);
 
-  const { messages, isThinking, askHint } = useNeuralAssistant(
+  const { messages, isThinking, askHint, stopGenerating } = useNeuralAssistant(
     problem
       ? { questionText: problem.questionText, options: problem.options, hintText: problem.hintText }
       : { questionText: '', options: [], hintText: '' },
@@ -121,7 +121,7 @@ export function CoreSubjectSolvingInterfacePage() {
 
   const handleAsk = async () => {
     const q = assistantInput.trim();
-    if (!q) return;
+    if (!q || isThinking) return;
     setAssistantInput('');
     await askHint(q);
   };
@@ -267,11 +267,21 @@ export function CoreSubjectSolvingInterfacePage() {
           </div>
           <div className="neural-input-bar">
             <input className="input" style={{ fontSize: '0.875rem' }}
-              placeholder="Ask anything about this problem…"
+              placeholder={isThinking ? "AI is generating response…" : "Ask anything about this problem…"}
               value={assistantInput}
+              disabled={isThinking}
               onChange={e => setAssistantInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleAsk()} />
-            <button className="btn btn-primary btn-sm" onClick={handleAsk}>Ask</button>
+              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && !isThinking && handleAsk()}
+            />
+            {isThinking ? (
+              <button className="btn btn-danger btn-sm" onClick={stopGenerating} title="Stop generating">
+                Stop
+              </button>
+            ) : (
+              <button className="btn btn-primary btn-sm" onClick={handleAsk} disabled={!assistantInput.trim()}>
+                Ask
+              </button>
+            )}
           </div>
         </div>
       </div>

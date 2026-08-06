@@ -501,7 +501,7 @@ dsaRouter.post('/execute', async (req, res) => {
 
 dsaRouter.post('/neural-pair-programmer', async (req, res, next) => {
   try {
-    const { userCode, currentProblem, errorReport, userQuery } = req.body ?? {};
+    const { userCode, currentProblem, errorReport, userQuery, chatHistory } = req.body ?? {};
 
     if (!currentProblem || typeof currentProblem !== 'object') {
       return res.status(400).json({ success: false, message: 'currentProblem is required' });
@@ -542,18 +542,23 @@ dsaRouter.post('/neural-pair-programmer', async (req, res, next) => {
       return res.json({ success: true, data: { analysis: fallback, source: 'local-fallback' } });
     }
 
+    const historyText = Array.isArray(chatHistory) && chatHistory.length > 0
+      ? `\nRecent Conversation History:\n${chatHistory.join('\n')}\n`
+      : '';
+
     // Build system prompt and user prompt based on mode
     let systemInstruction, prompt;
 
     if (isGeneralQuestion) {
       // General Q&A mode — answer the question about the problem naturally
       systemInstruction =
-        'You are a helpful DSA tutor and coding assistant. ' +
-        'Answer the student\'s question about the problem clearly and conversationally. ' +
-        'If they ask to explain the problem, explain it simply with an example. ' +
-        'If they ask for a solution, give a clean working solution with explanation. ' +
-        'If they ask for an approach or hint, explain the approach step by step. ' +
-        'Use markdown for code blocks. Keep responses concise and student-friendly.';
+        'You are the PrepMatrix DSA Assistant — a top-tier Competitive Programming & LeetCode expert.\n' +
+        'CRITICAL ACCURACY & CODE RULES:\n' +
+        '1. NUMERICAL BOUNDS & DATA TYPES: Always inspect constraints (N, A[i]). Calculate potential max sum/product. If sum can exceed 2*10^9 (e.g., N=200,000, A[i]=10^9 -> max sum=2*10^14), ALWAYS use 64-bit integers (`long long` in C++, `long` in Java).\n' +
+        '2. EDGE CASES: Correctly handle N=0 and negative numbers. Do NOT reject N=0 as invalid input if N=0 is allowed by constraints (0 <= N).\n' +
+        '3. STABLE OUTPUT: Do NOT print extra text like "Invalid input" or "Error" unless specified in the problem output format.\n' +
+        '4. CONCISE RESPONSES: Match response length to user query. If the user points out constraints or asks "what about overflow?", give a direct 1-3 sentence explanation and corrected code immediately.\n' +
+        '5. Use clean markdown code blocks.';
 
       prompt = [
         `Problem: ${problemTitle}`,
@@ -563,16 +568,17 @@ dsaRouter.post('/neural-pair-programmer', async (req, res, next) => {
         `Problem description: ${currentProblem.description || ''}`,
         '',
         `Hint available: ${currentProblem.hintText || ''}`,
-        '',
+        historyText,
         `Student asks: ${query || 'Please explain this problem.'}`
       ].join('\n');
     } else {
       // Code debugging mode — analyse code and help fix it
       systemInstruction =
-        'You are an expert pair programmer and DSA coach. ' +
-        'Analyse the student\'s code and help them fix it. ' +
-        'Give the full corrected code if needed. Be direct and helpful. ' +
-        'Use markdown for code blocks.';
+        'You are an expert pair programmer and Competitive Programming coach.\n' +
+        'CRITICAL CODE DEBUGGING RULES:\n' +
+        '1. Check numerical constraints: Check for integer overflow (int vs long long), array bounds, and N=0.\n' +
+        '2. Be direct, accurate, and fix the root cause bug.\n' +
+        '3. Match response length to user query. Avoid fluff.';
 
       prompt = [
         `Problem: ${problemTitle} (${problemPattern})`,
@@ -581,7 +587,7 @@ dsaRouter.post('/neural-pair-programmer', async (req, res, next) => {
         `Execution report: ${errorReport || 'No run yet'}`,
         '',
         `Student's code:\n\`\`\`\n${code}\n\`\`\``,
-        '',
+        historyText,
         `Student asks: ${query || 'Help me fix this code.'}`
       ].join('\n');
     }

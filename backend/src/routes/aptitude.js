@@ -176,7 +176,7 @@ aptitudeRouter.patch('/update-note', async (req, res, next) => {
 });
 
 aptitudeRouter.post('/ai-assistant', async (req, res) => {
-  const { problemContext, userQuery } = req.body ?? {};
+  const { problemContext, userQuery, chatHistory } = req.body ?? {};
 
   if (!problemContext || typeof problemContext !== 'object') {
     return res.status(400).json({ success: false, message: 'problemContext is required' });
@@ -201,11 +201,17 @@ aptitudeRouter.post('/ai-assistant', async (req, res) => {
   }
 
   const systemInstruction =
-    'You are the SP3 Neural Assistant — a helpful, conversational aptitude tutor. ' +
-    'Answer the student\'s question naturally and helpfully, just like a knowledgeable friend would. ' +
-    'If they ask for the answer, give it clearly along with a full explanation of the logic. ' +
-    'If they ask for a hint, give a helpful hint. If they ask a concept question, explain it well. ' +
-    'Be friendly, clear, and thorough. Use step-by-step reasoning when solving math problems.';
+    'You are the PrepMatrix Neural Assistant — a concise, clear tutor for aptitude and reasoning.\n' +
+    'RULES FOR RESPONSES:\n' +
+    '1. Match your response length to the user\'s question. If the user asks a short follow-up or simple question (e.g., "is it c?", "why?", "yes or no"), reply in 1 to 2 short sentences MAX.\n' +
+    '2. Do NOT repeat previous explanations or use long analogies unless explicitly requested.\n' +
+    '3. Be direct, accurate, and conversational.\n' +
+    '4. If the student asks for a hint, give a 1-2 sentence hint.\n' +
+    '5. Only provide detailed multi-step breakdowns when the student explicitly asks for "full explanation" or "solve step by step".';
+
+  const historyText = Array.isArray(chatHistory) && chatHistory.length > 0
+    ? `\nRecent Conversation History:\n${chatHistory.join('\n')}\n`
+    : '';
 
   const prompt = [
     'Problem Text:',
@@ -216,13 +222,13 @@ aptitudeRouter.post('/ai-assistant', async (req, res) => {
     '',
     'Hint available:',
     String(problemContext.hintText || ''),
-    '',
+    historyText,
     'Student asks:',
     userQuery.trim()
   ].join('\n');
 
   try {
-    const hint = await groqChat(systemInstruction, prompt, { temperature: 0.7, maxTokens: 600 }) || fallbackHint;
+    const hint = await groqChat(systemInstruction, prompt, { temperature: 0.5, maxTokens: 350 }) || fallbackHint;
 
     return res.json({
       success: true,

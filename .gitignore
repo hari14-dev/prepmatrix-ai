@@ -2,7 +2,8 @@ node_modules
 .env
 .env.*
 !.env.example
-frontend\\dist
-backend\\dist
+frontend/dist
+backend/dist
+dist/
 coverage
 

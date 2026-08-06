@@ -163,7 +163,7 @@ coreSubjectsRouter.patch('/update-note', async (req, res, next) => {
 
 coreSubjectsRouter.post('/ai-assistant', async (req, res, next) => {
   try {
-    const { problemContext, userQuery } = req.body ?? {};
+    const { problemContext, userQuery, chatHistory } = req.body ?? {};
 
     if (!problemContext || typeof problemContext !== 'object') {
       return res.status(400).json({ success: false, message: 'problemContext is required' });
@@ -187,11 +187,17 @@ coreSubjectsRouter.post('/ai-assistant', async (req, res, next) => {
     }
 
     const systemInstruction =
-      'You are the SP3 Neural Assistant — a helpful, conversational tutor for core CS subjects (OS, DBMS, CN, OOPS). ' +
-      'Answer the student\'s question naturally and helpfully like a knowledgeable friend would. ' +
-      'If they ask for the answer, give it clearly along with a conceptual explanation. ' +
-      'If they want a hint, give a good hint. Explain concepts with simple analogies when helpful. ' +
-      'Be friendly, thorough, and interview-focused.';
+      'You are the PrepMatrix Neural Assistant — a concise, sharp tutor for core CS subjects (OS, DBMS, CN, OOPS).\n' +
+      'RULES FOR RESPONSES:\n' +
+      '1. Match your response length to the user\'s question. If the user asks a short follow-up or simple question (e.g., "is it c?", "why?", "yes or no"), reply in 1 to 2 short sentences MAX.\n' +
+      '2. Do NOT repeat previous explanations or use long analogies unless explicitly requested.\n' +
+      '3. Be direct, accurate, and conversational.\n' +
+      '4. If the student asks for a hint, give a 1-2 sentence hint.\n' +
+      '5. Only provide detailed multi-step breakdowns when the student explicitly asks for "full explanation" or "solve step by step".';
+
+    const historyText = Array.isArray(chatHistory) && chatHistory.length > 0
+      ? `\nRecent Conversation History:\n${chatHistory.join('\n')}\n`
+      : '';
 
     const prompt = [
       'Problem Text:',
@@ -202,13 +208,13 @@ coreSubjectsRouter.post('/ai-assistant', async (req, res, next) => {
       '',
       'Hint available:',
       String(problemContext.hintText || ''),
-      '',
+      historyText,
       'Student asks:',
       userQuery.trim()
     ].join('\n');
 
     try {
-      const hint = await groqChat(systemInstruction, prompt, { temperature: 0.7, maxTokens: 600 }) || fallbackHint;
+      const hint = await groqChat(systemInstruction, prompt, { temperature: 0.5, maxTokens: 350 }) || fallbackHint;
 
       return res.json({
         success: true,

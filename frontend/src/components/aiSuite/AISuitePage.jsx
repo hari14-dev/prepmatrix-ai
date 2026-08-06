@@ -97,6 +97,7 @@ function ResumeAnalyzer({ sharedResumeText, onResumeChange }) {
   const fileInputRef = useRef(null);
 
   const runAudit = async () => {
+    if (isRunning) return;
     if (!sharedResumeText.trim()) { setError('Paste your resume content first.'); return; }
     if (sharedResumeText.trim().length < 100) { setError('Resume is too short — paste at least 100 characters.'); return; }
     setError(''); setIsRunning(true); setResult(null);
