@@ -1,0 +1,19 @@
+{
+  "name": "sp3",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev:web": "npm --workspace frontend run dev",
+    "dev:api": "npm --workspace backend run dev",
+    "build": "npm --workspace frontend run build",
+    "seed:aptitude": "node backend/seed.js",
+    "seed:dsa": "node backend/seedDSA.js"
+  },
+  "dependencies": {
+    "react-resizable-panels": "^4.9.0"
+  }
+}
