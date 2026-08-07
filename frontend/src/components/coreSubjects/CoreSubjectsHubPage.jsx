@@ -38,7 +38,6 @@ export function CoreSubjectsHubPage() {
   return (
     <div className="animate-in">
       <div className="page-header-block">
-        <div className="breadcrumb-chip"><BookOpen size={12} strokeWidth={2} /><span>Core Subjects</span></div>
         <h1 className="page-main-title">Core Subjects Vault</h1>
         <p style={{ color:'var(--tx-3)', fontSize:'0.9rem', marginTop:'0.3rem', marginBottom:'0.75rem' }}>
           Concept articles + MCQ practice for every interview topic.
@@ -80,7 +79,7 @@ export function CoreSubjectsHubPage() {
                     <div className="mini-bar-fill" style={{ width:`${avg}%`, background:cat.accent }} />
                   </div>
                   {/* Topic rows */}
-                  <div style={{ display:'flex', flexDirection:'column', gap:'0.3rem' }}>
+                  <div className="subject-card-topics">
                     {topics.length===0
                       ? <p style={{ fontSize:'0.8rem', color:'var(--tx-4)', padding:'0.5rem 0' }}>No topics yet.</p>
                       : topics.map(t => (

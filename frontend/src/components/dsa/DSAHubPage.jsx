@@ -54,7 +54,6 @@ export function DSAHubPage() {
   return (
     <div className="animate-in">
       <div className="page-header-block">
-        <div className="breadcrumb-chip"><Code2 size={12} strokeWidth={2} /><span>DSA Module</span></div>
         <h1 className="page-main-title">DSA Hub</h1>
         <p style={{ color:'var(--tx-3)', fontSize:'0.9rem', marginTop:'0.3rem', marginBottom:'0.75rem' }}>
           Pattern-based problem solving. Click any card to open its problem sheet.

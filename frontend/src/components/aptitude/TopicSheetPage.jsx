@@ -21,35 +21,25 @@ import remarkGfm from 'remark-gfm';
 import { useSetBreadcrumb } from '../../context/BreadcrumbContext.jsx';
 import { apiRequest } from '../../lib/api.js';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { Calculator, CheckCircle2 } from 'lucide-react';
+import { Calculator, CheckCircle2, Layers, ChevronDown, BookOpen } from 'lucide-react';
 
 const DIFF_COLORS = {
-  easy:   'var(--green)',
-  medium: 'var(--amber)',
-  hard:   'var(--rose)',
+  easy:   '#10b981',
+  medium: '#f59e0b',
+  hard:   '#f43f5e',
 };
 
-/** Small progress ring for pattern completion */
+/** Clean progress bar for pattern completion */
 function PatternProgress({ solved, total }) {
   const pct = total === 0 ? 0 : Math.round((solved / total) * 100);
-  const color = pct === 100 ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--indigo)';
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-      <div style={{
-        width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-        background: `conic-gradient(${color} ${pct * 3.6}deg, rgba(255,255,255,0.06) 0deg)`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <div style={{
-          width: 26, height: 26, borderRadius: '50%',
-          background: 'var(--bg-card)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '0.6rem', fontWeight: 700, color: 'var(--tx-1)',
-        }}>
-          {pct}%
-        </div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+      <div style={{ width: 80, height: 6, borderRadius: 99, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pct}%`, borderRadius: 99, background: pct === 100 ? 'var(--green)' : 'var(--indigo-light)', transition: 'width 0.4s' }} />
       </div>
-      <span className="t-sm">{solved}/{total}</span>
+      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: pct === 100 ? 'var(--green)' : 'var(--tx-3)' }}>
+        {solved}/{total}
+      </span>
     </div>
   );
 }
@@ -59,32 +49,39 @@ function ConceptPanel({ article }) {
   const [open, setOpen] = useState(false);
   if (!article) return null;
   return (
-    <div className="card soft-card" style={{ marginBottom: '1.5rem' }}>
+    <div className="card soft-card" style={{ marginBottom: '1.5rem', borderRadius: 'var(--r-lg)', border: '1px solid var(--b-2)' }}>
       <button
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          width: '100%', background: 'none', border: 'none', cursor: 'pointer',
-          padding: 0,
+          width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: 0,
         }}
         onClick={() => setOpen(v => !v)}
       >
-        <div className="row gap-sm">
-          
+        <div className="row gap-sm" style={{ alignItems: 'center' }}>
+          <div style={{
+            width: 34, height: 34, borderRadius: 'var(--r-md)',
+            background: 'var(--indigo-dim)', border: '1px solid var(--b-3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0
+          }}>
+            <BookOpen size={16} style={{ color: 'var(--indigo-light)' }} />
+          </div>
           <div style={{ textAlign: 'left' }}>
             <p style={{ fontWeight: 700, fontSize: '0.975rem', color: 'var(--tx-1)' }}>
-              Concept Article
+              Concept Guide & Formulas
             </p>
-            <p className="t-sm">Study this before attempting the problems</p>
+            <p className="t-sm" style={{ color: 'var(--tx-4)' }}>Review formulas and key techniques before solving</p>
           </div>
         </div>
-        <span style={{
-          fontSize: '1.2rem', color: 'var(--indigo-light)',
-          transform: open ? 'rotate(180deg)' : 'none',
-          transition: 'transform 0.2s',
-          flexShrink: 0,
-        }}>
-          ▾
-        </span>
+        <ChevronDown
+          size={18}
+          style={{
+            color: 'var(--tx-4)',
+            transform: open ? 'rotate(180deg)' : 'none',
+            transition: 'transform 0.2s',
+            flexShrink: 0,
+          }}
+        />
       </button>
 
       {open && (
@@ -107,44 +104,40 @@ function ProblemCard({ problem, topicSlug }) {
       to={`/dashboard/aptitude/solve/${topicSlug}/${problem.id}`}
       style={{ display: 'block', textDecoration: 'none' }}
     >
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        gap: '0.75rem',
-        padding: '0.85rem 1rem',
-        borderRadius: 'var(--r-md)',
-        border: `1px solid ${problem.isSolved ? 'rgba(26,156,107,0.25)' : 'var(--b-1)'}`,
-        background: problem.isSolved ? 'rgba(26,156,107,0.04)' : 'rgba(11,15,26,0.4)',
-        transition: 'all 0.18s var(--ease)',
-        cursor: 'pointer',
-      }}
-      onMouseEnter={e => {
-        e.currentTarget.style.borderColor = 'var(--indigo)';
-        e.currentTarget.style.background = 'var(--indigo-dim)';
-        e.currentTarget.style.transform = 'translateX(3px)';
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.borderColor = problem.isSolved ? 'rgba(26,156,107,0.25)' : 'var(--b-1)';
-        e.currentTarget.style.background = problem.isSolved ? 'rgba(26,156,107,0.04)' : 'rgba(11,15,26,0.4)';
-        e.currentTarget.style.transform = 'none';
-      }}
+      <div
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: '0.85rem',
+          padding: '0.75rem 1rem',
+          borderRadius: 'var(--r-md)',
+          border: `1px solid ${problem.isSolved ? 'rgba(16,185,129,0.3)' : 'var(--b-2)'}`,
+          background: problem.isSolved ? 'rgba(16,185,129,0.06)' : 'var(--bg-elevated)',
+          transition: 'all 0.18s var(--ease)',
+          cursor: 'pointer',
+        }}
+        onMouseEnter={e => {
+          e.currentTarget.style.borderColor = 'var(--indigo)';
+          e.currentTarget.style.transform = 'translateX(4px)';
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.borderColor = problem.isSolved ? 'rgba(16,185,129,0.3)' : 'var(--b-2)';
+          e.currentTarget.style.transform = 'none';
+        }}
       >
         {/* Left: solved indicator + title */}
-        <div className="row gap-sm" style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0, flex: 1 }}>
           <div style={{
             width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
-            background: problem.isSolved ? 'var(--green)' : 'var(--bg-elevated)',
-            border: `1.5px solid ${problem.isSolved ? 'var(--green)' : 'var(--b-2)'}`,
+            background: problem.isSolved ? 'rgba(16,185,129,0.15)' : 'transparent',
+            border: `2px solid ${problem.isSolved ? 'var(--green)' : 'rgba(255,255,255,0.18)'}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '0.65rem', color: '#fff',
           }}>
-            {problem.isSolved ? (
-                          <svg width="11" height="9" viewBox="0 0 11 9" fill="none" style={{marginRight:'0.35rem',flexShrink:0}}>
-                            <path d="M1 4.5L4 7.5L10 1" stroke="var(--green)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        ) : null}
+            {problem.isSolved && (
+              <CheckCircle2 size={13} style={{ color: 'var(--green)' }} />
+            )}
           </div>
           <span style={{
-            fontSize: '0.9rem', fontWeight: problem.isSolved ? 500 : 600,
+            fontSize: '0.88rem', fontWeight: problem.isSolved ? 500 : 600,
             color: problem.isSolved ? 'var(--tx-3)' : 'var(--tx-1)',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
@@ -152,17 +145,18 @@ function ProblemCard({ problem, topicSlug }) {
           </span>
         </div>
 
-        {/* Right: difficulty + arrow */}
-        <div className="row gap-sm" style={{ flexShrink: 0 }}>
+        {/* Right: difficulty + Action */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
           <span style={{
-            fontSize: '0.72rem', fontWeight: 700, padding: '0.15rem 0.55rem',
-            borderRadius: 'var(--r-full)',
+            fontSize: '0.72rem', fontWeight: 700, padding: '0.2rem 0.6rem',
+            borderRadius: 'var(--r-sm)',
             background: `${color}18`, color,
             border: `1px solid ${color}30`,
+            textTransform: 'capitalize'
           }}>
             {problem.difficulty}
           </span>
-          <span style={{ color: 'var(--tx-4)', fontSize: '0.85rem' }}>→</span>
+          <span className="btn btn-primary btn-sm" style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem' }}>Solve →</span>
         </div>
       </div>
     </Link>
@@ -176,7 +170,7 @@ function PatternSection({ pattern, topicSlug }) {
   const total  = pattern.problems.length;
 
   return (
-    <div className="card soft-card" style={{ marginBottom: '1rem' }}>
+    <div className="card soft-card" style={{ marginBottom: '1.25rem', borderRadius: 'var(--r-lg)', border: '1px solid var(--b-2)' }}>
       {/* Pattern header */}
       <button
         style={{
@@ -186,29 +180,32 @@ function PatternSection({ pattern, topicSlug }) {
         }}
         onClick={() => setCollapsed(v => !v)}
       >
-        <div className="row gap-sm">
+        <div className="row gap-sm" style={{ alignItems: 'center' }}>
           <div style={{
-            width: 32, height: 32, borderRadius: 'var(--r-sm)',
-            background: 'var(--indigo-dim)', border: '1px solid rgba(58,92,216,0.25)',
+            width: 34, height: 34, borderRadius: 'var(--r-md)',
+            background: 'var(--indigo-dim)', border: '1px solid var(--b-3)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '0.85rem', flexShrink: 0,
+            flexShrink: 0,
           }}>
-            
+            <Layers size={16} style={{ color: 'var(--indigo-light)' }} />
           </div>
           <div style={{ textAlign: 'left' }}>
             <p style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--tx-1)' }}>
               {pattern.name}
             </p>
-            <p className="t-sm">{total} problem{total !== 1 ? 's' : ''}</p>
+            <p className="t-sm" style={{ color: 'var(--tx-4)' }}>{total} problem{total !== 1 ? 's' : ''}</p>
           </div>
         </div>
-        <div className="row gap-sm">
+        <div className="row gap-md" style={{ alignItems: 'center' }}>
           <PatternProgress solved={solved} total={total} />
-          <span style={{
-            fontSize: '1.1rem', color: 'var(--tx-4)',
-            transform: collapsed ? 'rotate(-90deg)' : 'none',
-            transition: 'transform 0.2s',
-          }}>▾</span>
+          <ChevronDown
+            size={18}
+            style={{
+              color: 'var(--tx-4)',
+              transform: collapsed ? 'rotate(-90deg)' : 'none',
+              transition: 'transform 0.2s',
+            }}
+          />
         </div>
       </button>
 
@@ -272,21 +269,20 @@ export function TopicSheetPage() {
     <div className="animate-in">
       {/* ── Header ── */}
       <div className="page-header-block">
-        <div className="breadcrumb-chip">
-          <Calculator size={12} strokeWidth={2} />
-          <span>Aptitude · {topicData.category}</span>
-        </div>
         <h1 className="page-main-title">{topicData.title}</h1>
+        <p style={{ color:'var(--tx-3)', fontSize:'0.9rem', marginTop:'0.25rem' }}>
+          Pattern-wise aptitude questions with step-by-step solutions and AI hint assistance.
+        </p>
 
-        <div style={{ display:'flex', alignItems:'center', gap:'0.65rem', marginTop:'0.6rem', flexWrap:'wrap' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:'0.65rem', marginTop:'0.75rem', flexWrap:'wrap' }}>
           <div className="solved-chip">
-            <CheckCircle2 size={12} strokeWidth={2} style={{ color:'var(--green)' }} />
-            <span>{totalSolved} / {totalProbs} solved</span>
+            <CheckCircle2 size={13} strokeWidth={2} style={{ color:'var(--green)' }} />
+            <span>{totalSolved} / {totalProbs} completed</span>
           </div>
-          <div className="mini-bar-wrap" style={{ maxWidth:180 }}>
+          <div className="mini-bar-wrap" style={{ maxWidth: 200 }}>
             <div className="mini-bar-fill" style={{ width:`${pct}%` }} />
           </div>
-          <span style={{ fontSize:'0.8rem', fontWeight:700, color:'var(--indigo-light)' }}>{pct}%</span>
+          <span style={{ fontSize:'0.85rem', fontWeight:800, color:'var(--indigo-light)' }}>{pct}%</span>
         </div>
       </div>
 

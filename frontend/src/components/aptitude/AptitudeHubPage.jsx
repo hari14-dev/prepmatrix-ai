@@ -37,7 +37,6 @@ export function AptitudeHubPage() {
   return (
     <div className="animate-in">
       <div className="page-header-block">
-        <div className="breadcrumb-chip"><Calculator size={12} strokeWidth={2} /><span>Aptitude Module</span></div>
         <h1 className="page-main-title">Aptitude Hub</h1>
         <p style={{ color:'var(--tx-3)', fontSize:'0.9rem', marginTop:'0.3rem', marginBottom:'0.75rem' }}>
           Topic-wise preparation across Quantitative, Logical, and Verbal.
@@ -77,7 +76,7 @@ export function AptitudeHubPage() {
                   <div className="mini-bar-wrap" style={{ marginBottom:'0.85rem' }}>
                     <div className="mini-bar-fill" style={{ width:`${avg}%`, background:cat.accent }} />
                   </div>
-                  <div style={{ display:'flex', flexDirection:'column', gap:'0.3rem' }}>
+                  <div className="subject-card-topics">
                     {topics.length===0
                       ? <p style={{ fontSize:'0.8rem', color:'var(--tx-4)', padding:'0.5rem 0' }}>No topics yet.</p>
                       : topics.map(t => (

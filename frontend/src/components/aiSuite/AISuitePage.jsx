@@ -85,7 +85,7 @@ function InfoList({ title, items = [], color = 'var(--indigo-light)', icon = '�
    ══════════════════════════════════════════════════════ */
 function ResumeAnalyzer({ sharedResumeText, onResumeChange }) {
   const { token } = useAuth();
-  const [targetRole,      setTargetRole]      = useState('Software Engineer Intern');
+  const [targetRole,      setTargetRole]      = useState('Software Development Engineer (SDE)');
   const [jobDescription,  setJobDescription]  = useState('');
   const [isRunning,       setIsRunning]       = useState(false);
   const [error,           setError]           = useState('');
@@ -300,14 +300,40 @@ function ResumeAnalyzer({ sharedResumeText, onResumeChange }) {
 /* ══════════════════════════════════════════════════════
    SECTION 2 — Voice Mock Interview (Real Conversation Flow)
    ══════════════════════════════════════════════════════ */
-function MockInterview({ sharedResumeText }) {
+function MockInterview({ sharedResumeText, onResumeChange }) {
   const { token } = useAuth();
 
   // Config
-  const [targetRole,    setTargetRole]    = useState('Software Engineer Intern');
+  const [targetRole,    setTargetRole]    = useState('Software Development Engineer (SDE)');
   const [focusArea,     setFocusArea]     = useState('mixed');
   const [difficulty,    setDifficulty]    = useState('medium');
   const [questionCount, setQuestionCount] = useState(5);
+
+  // Resume Upload states
+  const [isUploading,      setIsUploading]      = useState(false);
+  const [uploadError,      setUploadError]      = useState('');
+  const [uploadedFileName, setUploadedFileName] = useState('');
+  const [showPasteText,    setShowPasteText]    = useState(false);
+  const fileInputRef = useRef(null);
+
+  const handleFileSelected = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setUploadError(''); setIsUploading(true); setUploadedFileName('');
+    try {
+      const formData = new FormData();
+      formData.append('resumeFile', file);
+      const res = await apiUpload('/api/ai-suite/resume-parse', formData, { token });
+      onResumeChange?.(res.data.resumeText);
+      setUploadedFileName(res.data.fileName);
+    } catch (err) {
+      setUploadError(err.message || 'Could not read this file. Try pasting the text instead.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   // Session state
   const [sessionId,       setSessionId]       = useState('');
@@ -332,14 +358,17 @@ function MockInterview({ sharedResumeText }) {
   const answerStartRef   = useRef(Date.now());
   const chatEndRef       = useRef(null);
   const autoListenTimer  = useRef(null);
+  const silenceTimerRef  = useRef(null);
   const isListeningRef   = useRef(false);  // stable ref for callbacks
+  const submitRef        = useRef(null);
 
   const canSpeak  = typeof window !== 'undefined' && 'speechSynthesis' in window;
   const canListen = typeof window !== 'undefined' &&
     ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
 
-  /* ── Keep ref in sync ── */
+  /* ── Keep refs in sync ── */
   useEffect(() => { isListeningRef.current = isListening; }, [isListening]);
+  useEffect(() => { submitRef.current = submitAnswer; });
 
   /* ── Set up SpeechRecognition ── */
   useEffect(() => {
@@ -362,18 +391,35 @@ function MockInterview({ sharedResumeText }) {
         setAnswerDraft(prev => (prev ? `${prev} ${final}` : final).trim());
         setInterimText('');
       }
+
+      // Hands-Free VAD Silence Detection (ChatGPT Voice Mode):
+      // Reset silence timer on every detected speech snippet.
+      // If 1.8 seconds pass with no further speech, auto-submit the answer!
+      clearTimeout(silenceTimerRef.current);
+      if (voiceMode) {
+        silenceTimerRef.current = setTimeout(() => {
+          if (isListeningRef.current) {
+            submitRef.current?.();
+          }
+        }, 1800);
+      }
     };
     rec.onend  = () => {
+      clearTimeout(silenceTimerRef.current);
       setIsListening(false);
       setInterimText('');
     };
     rec.onerror = () => {
+      clearTimeout(silenceTimerRef.current);
       setIsListening(false);
       setInterimText('');
     };
     recognitionRef.current = rec;
-    return () => { try { rec.stop(); } catch {} };
-  }, []);
+    return () => {
+      clearTimeout(silenceTimerRef.current);
+      try { rec.stop(); } catch {}
+    };
+  }, [voiceMode]);
 
   /* ── Auto-scroll chat ── */
   useEffect(() => {
@@ -623,14 +669,84 @@ function MockInterview({ sharedResumeText }) {
           </div>
         </div>
 
-        {sharedResumeText.trim()
-          ? <p className="t-sm" style={{ color: 'var(--green)', marginBottom: '0.75rem' }}>
-              Resume detected — questions will be tailored to your experience
+        {/* Resume Upload & Text Input Card */}
+        <div style={{
+          padding: '0.85rem 1rem',
+          borderRadius: 'var(--r-md)',
+          background: 'var(--bg-input)',
+          border: '1px solid var(--b-2)',
+          marginBottom: '1.25rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.65rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <FileText size={16} style={{ color: 'var(--indigo-light)' }} />
+              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--tx-1)' }}>
+                Tailor Questions to Your Resume
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.docx,.txt"
+                style={{ display: 'none' }}
+                onChange={handleFileSelected}
+              />
+              <button
+                className="btn btn-secondary btn-sm"
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+              >
+                {isUploading ? (
+                  <><span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Parsing PDF/DOCX…</>
+                ) : (
+                  '📁 Upload Resume (PDF / DOCX)'
+                )}
+              </button>
+              <button
+                className="btn btn-outline btn-sm"
+                type="button"
+                onClick={() => setShowPasteText(v => !v)}
+              >
+                {showPasteText ? 'Hide Text' : 'Paste Text'}
+              </button>
+            </div>
+          </div>
+
+          {uploadError && <p className="error-text" style={{ fontSize: '0.8rem', padding: '0.4rem 0.6rem' }}>{uploadError}</p>}
+
+          {uploadedFileName && (
+            <p className="t-xs" style={{ color: 'var(--green)', fontWeight: 600 }}>
+              ✅ Uploaded: {uploadedFileName} ({sharedResumeText.length} characters parsed) — Questions will be tailored to your experience!
             </p>
-          : <p className="t-sm" style={{ color: 'var(--amber)', marginBottom: '0.75rem' }}>
-              No resume pasted — AI will generate generic questions
+          )}
+
+          {(!uploadedFileName && sharedResumeText.trim()) && (
+            <p className="t-xs" style={{ color: 'var(--green)', fontWeight: 600 }}>
+              ✅ Resume content detected ({sharedResumeText.length} characters) — Questions will be tailored to your experience!
             </p>
-        }
+          )}
+
+          {(!sharedResumeText.trim() && !uploadedFileName) && (
+            <p className="t-xs" style={{ color: 'var(--tx-4)' }}>
+              Upload a PDF/DOCX resume or paste text so the AI interviewer asks tailored questions about your projects and skills.
+            </p>
+          )}
+
+          {showPasteText && (
+            <textarea
+              className="textarea"
+              style={{ minHeight: 90, fontSize: '0.82rem', marginTop: '0.25rem' }}
+              placeholder="Paste your resume text here..."
+              value={sharedResumeText}
+              onChange={e => onResumeChange?.(e.target.value)}
+            />
+          )}
+        </div>
 
         <button className="btn btn-primary btn-glow" style={{ width: '100%' }}
           disabled={isStarting} onClick={startInterview}>
@@ -685,7 +801,7 @@ function MockInterview({ sharedResumeText }) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
           <div className="row wrap gap-sm">
             <span className="pill">{targetRole}</span>
-            <span className={`pill ${voiceMode ? 'pill-cyan' : ''}`}>{voiceMode ? 'Voice' : 'Text'}</span>
+            <span className={`pill ${voiceMode ? 'pill-cyan' : ''}`}>{voiceMode ? 'Voice Mode (Hands-Free)' : 'Text Mode'}</span>
             <span className={`pill ${difficulty === 'hard' ? 'pill-rose' : difficulty === 'medium' ? 'pill-amber' : 'pill-green'}`}>
               {difficulty}
             </span>
@@ -701,28 +817,49 @@ function MockInterview({ sharedResumeText }) {
         </div>
       </div>
 
-      {/* Status indicator */}
-      {(isSpeaking || isListening || isSubmitting || statusMsg) && (
-        <div style={{
-          padding: '0.65rem 1.1rem', borderRadius: 'var(--r-md)',
-          display: 'flex', alignItems: 'center', gap: '0.65rem',
-          background: isListening ? 'rgba(209,73,91,0.08)' : isSpeaking ? 'rgba(58,92,216,0.08)' : 'rgba(193,127,17,0.08)',
-          border: `1px solid ${isListening ? 'rgba(209,73,91,0.3)' : isSpeaking ? 'rgba(58,92,216,0.3)' : 'rgba(193,127,17,0.3)'}`,
-        }}>
-          <span style={{
-            width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
-            background: isListening ? 'var(--rose)' : isSpeaking ? 'var(--indigo)' : 'var(--amber)',
-            animation: 'spin 1.2s linear infinite',
-          }} />
-          <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--tx-1)' }}>
-            {isListening ? <><Mic size={13} strokeWidth={2} style={{marginRight:'0.3rem'}}/>Listening…</> :
-             isSpeaking ? <><Bot size={13} strokeWidth={1.75} style={{marginRight:'0.3rem'}}/>Interviewer speaking…</> :
-             statusMsg}
-          </span>
+      {/* ── ChatGPT Voice Mode Orb & Wave Stage ── */}
+      {voiceMode && (
+        <div className={`voice-orb-stage ${isSpeaking ? 'speaking' : isListening ? 'listening' : isSubmitting ? 'evaluating' : 'idle'}`}>
+          <div className="voice-orb-glow" />
+          <div className="voice-orb-core">
+            {isSpeaking ? <Bot size={44} style={{ color: '#ffffff' }} /> :
+             isListening ? <Mic size={44} style={{ color: '#ffffff' }} /> :
+             isSubmitting ? <span className="spinner" style={{ width: 36, height: 36, borderWidth: 3, borderTopColor: 'var(--amber)' }} /> :
+             <Bot size={44} style={{ color: 'var(--indigo-light)' }} />}
+          </div>
+
+          {/* Animated Audio Equalizer Wave Bars */}
+          <div className="voice-wave-bars">
+            <div className="voice-wave-bar" />
+            <div className="voice-wave-bar" />
+            <div className="voice-wave-bar" />
+            <div className="voice-wave-bar" />
+            <div className="voice-wave-bar" />
+          </div>
+
+          <div style={{ marginTop: '0.85rem', textAlign: 'center', zIndex: 2 }}>
+            <p style={{ fontWeight: 800, fontSize: '1rem', color: '#ffffff', letterSpacing: '-0.01em' }}>
+              {isSpeaking ? 'Interviewer Speaking…' :
+               isListening ? 'Listening to You (Hands-Free)…' :
+               isSubmitting ? 'Evaluating Your Answer…' :
+               statusMsg || 'Ready for Conversation'}
+            </p>
+            <p className="t-xs" style={{ color: 'rgba(255,255,255,0.7)', marginTop: '0.2rem' }}>
+              {isListening
+                ? 'Speak naturally — 1.8s of silence automatically submits your response'
+                : isSpeaking
+                ? 'Listen to the interviewer question'
+                : 'Continuous voice interaction active'}
+            </p>
+          </div>
+
           {(isSpeaking || isListening) && (
-            <button className="btn btn-outline btn-sm" style={{ marginLeft: 'auto' }}
-              onClick={() => { stopSpeaking(); stopListening(); }}>
-              Stop
+            <button
+              className="btn btn-outline btn-sm"
+              style={{ position: 'absolute', right: 16, top: 16, borderColor: 'rgba(255,255,255,0.2)', color: '#fff' }}
+              onClick={() => { stopSpeaking(); stopListening(); }}
+            >
+              Interrupt / Stop
             </button>
           )}
         </div>
@@ -969,7 +1106,7 @@ export function AISuitePage() {
       {/* ── Active section ── */}
       {activeTab === 'resume'
         ? <ResumeAnalyzer sharedResumeText={sharedResume} onResumeChange={setSharedResume} />
-        : <MockInterview sharedResumeText={sharedResume} />
+        : <MockInterview sharedResumeText={sharedResume} onResumeChange={setSharedResume} />
       }
     </div>
   );

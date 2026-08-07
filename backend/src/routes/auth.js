@@ -5,6 +5,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { UserModel } from '../models/User.js';
 import { signAuthToken } from '../utils/jwt.js';
 import { env } from '../config/env.js';
+import { sendOtpEmail } from '../utils/mailer.js';
 
 const isEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
@@ -22,7 +23,7 @@ const validateRegisterInput = (body) => {
   }
 
   if (!isEmail(email)) {
-    return 'Valid email is required';
+    return 'Valid email address is required';
   }
 
   if (password.length < 6) {
@@ -41,7 +42,7 @@ const validateLoginInput = (body) => {
   const password = typeof body.password === 'string' ? body.password : '';
 
   if (!isEmail(email)) {
-    return 'Valid email is required';
+    return 'Valid email address is required';
   }
 
   if (password.length < 6) {
@@ -52,6 +53,107 @@ const validateLoginInput = (body) => {
 };
 
 export const authRouter = Router();
+
+// Temporary in-memory store for 6-digit registration verification codes
+const otpStore = new Map();
+
+// POST /api/auth/send-otp
+authRouter.post('/send-otp', async (req, res, next) => {
+  try {
+    const validationError = validateRegisterInput(req.body);
+    if (validationError) {
+      return res.status(400).json({ success: false, message: validationError });
+    }
+
+    const fullName = req.body.fullName.trim();
+    const email = req.body.email.trim().toLowerCase();
+
+    const existingUser = await UserModel.findOne({ email }).lean();
+    if (existingUser) {
+      return res.status(409).json({ success: false, message: 'Email is already registered. Please sign in instead.' });
+    }
+
+    // Generate random 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    const passwordHash = await bcrypt.hash(req.body.password, 10);
+
+    otpStore.set(email, {
+      otp,
+      expiresAt,
+      fullName,
+      passwordHash
+    });
+
+    const mailResult = await sendOtpEmail(email, otp, fullName);
+
+    return res.status(200).json({
+      success: true,
+      message: mailResult.sent
+        ? `Verification code sent to ${email}. Check your inbox!`
+        : `Verification code generated for ${email}.`,
+      otp: mailResult.dev ? otp : undefined, // Only included in local dev mode when no SMTP key exists
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/auth/verify-otp
+authRouter.post('/verify-otp', async (req, res, next) => {
+  try {
+    const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const otp = typeof req.body.otp === 'string' ? req.body.otp.trim() : '';
+
+    if (!email || !otp) {
+      return res.status(400).json({ success: false, message: 'Email and 6-digit verification code are required' });
+    }
+
+    const stored = otpStore.get(email);
+    if (!stored) {
+      return res.status(400).json({ success: false, message: 'No verification code found for this email or it has expired. Please request a new code.' });
+    }
+
+    if (Date.now() > stored.expiresAt) {
+      otpStore.delete(email);
+      return res.status(400).json({ success: false, message: 'Verification code has expired. Please request a new code.' });
+    }
+
+    if (stored.otp !== otp) {
+      return res.status(400).json({ success: false, message: 'Invalid verification code. Please check your code and try again.' });
+    }
+
+    // OTP matched! Create user account
+    const user = await UserModel.create({
+      fullName: stored.fullName,
+      email,
+      passwordHash: stored.passwordHash
+    });
+
+    otpStore.delete(email);
+    const token = signAuthToken({ userId: user.id, email: user.email });
+
+    return res.status(201).json({
+      success: true,
+      data: {
+        token,
+        user: {
+          id: user.id,
+          fullName: user.fullName,
+          email: user.email,
+          readinessScore: user.readinessScore,
+          streakDays: user.streakDays
+        }
+      }
+    });
+  } catch (err) {
+    if (err?.code === 11000) {
+      return res.status(409).json({ success: false, message: 'Email is already registered' });
+    }
+    next(err);
+  }
+});
 
 authRouter.post('/register', async (req, res, next) => {
   try {

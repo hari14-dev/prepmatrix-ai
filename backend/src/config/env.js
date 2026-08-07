@@ -18,6 +18,11 @@ const envGoogleClientId = process.env.GOOGLE_CLIENT_ID || '';
 const envOneCompilerApiUrl = process.env.ONECOMPILER_API_URL || 'https://onecompiler-apis.p.rapidapi.com';
 const envOneCompilerRapidApiHost = process.env.ONECOMPILER_RAPIDAPI_HOST || 'onecompiler-apis.p.rapidapi.com';
 const envOneCompilerRapidApiKey = process.env.ONECOMPILER_RAPIDAPI_KEY || '';
+const envSmtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
+const envSmtpPort = Number(process.env.SMTP_PORT) || 465;
+const envSmtpUser = process.env.SMTP_USER || process.env.GMAIL_USER || '';
+const envSmtpPass = process.env.SMTP_PASS || process.env.GMAIL_PASS || '';
+const envSmtpFrom = process.env.SMTP_FROM || envSmtpUser || 'PrepMatrix AI <no-reply@prepmatrix.ai>';
 
 if (!envMongoUri || envMongoUri.trim() === '') {
   throw new Error('MONGODB_URI is required in backend/.env');
@@ -36,5 +41,10 @@ export const env = {
   GOOGLE_CLIENT_ID: envGoogleClientId,
   ONECOMPILER_API_URL: envOneCompilerApiUrl,
   ONECOMPILER_RAPIDAPI_HOST: envOneCompilerRapidApiHost,
-  ONECOMPILER_RAPIDAPI_KEY: envOneCompilerRapidApiKey
+  ONECOMPILER_RAPIDAPI_KEY: envOneCompilerRapidApiKey,
+  SMTP_HOST: envSmtpHost,
+  SMTP_PORT: envSmtpPort,
+  SMTP_USER: envSmtpUser,
+  SMTP_PASS: envSmtpPass,
+  SMTP_FROM: envSmtpFrom
 };
