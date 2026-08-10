@@ -139,28 +139,80 @@ async function generateResumeAudit({ resumeText, targetRole, jobDescription }) {
 }
 
 function localInterviewQuestionSet({ targetRole, focusArea, difficulty, questionCount }) {
-  const role = String(targetRole || 'Software Engineer').trim();
-  const focus = String(focusArea || 'mixed').trim();
+  const role = String(targetRole || 'Software Development Engineer (SDE)').trim();
+  const focus = String(focusArea || 'mixed').trim().toLowerCase();
   const level = String(difficulty || 'medium').trim();
 
-  const baseQuestions = [
-    `Introduce yourself in 60 seconds for a ${role} interview.`,
-    `Explain one project from your resume and your individual contribution.`,
-    'Describe a bug you fixed under pressure. How did you debug it?',
-    'How do you decide between time complexity and implementation simplicity?',
-    'Explain one trade-off you made in a full-stack feature you built.',
-    `What ${focus === 'hr' ? 'behavioral' : 'technical'} area are you currently improving and why?`,
-    `If this round is marked as ${level}, how would you structure your answer to stay concise?`
-  ];
+  const questionBanks = {
+    os: [
+      'Explain the difference between a Process and a Thread. How does the OS handle context switching between threads?',
+      'What is a Deadlock in Operating Systems? Explain the 4 necessary conditions required for a deadlock to occur.',
+      'Explain Virtual Memory and Paging. How does a page fault happen and how does the OS handle it?',
+      'Compare CPU scheduling algorithms: Round Robin vs FCFS vs Shortest Job First. When would you choose Round Robin?',
+      'What is Mutex vs Semaphore? Explain synchronization and critical section problem with a real example.'
+    ],
+    dbms: [
+      'Explain ACID properties in Database Management Systems with a real-world transaction example.',
+      'What is Database Normalization? Compare 1NF, 2NF, 3NF, and BCNF. When would you intentionally denormalize a DB?',
+      'What is a Database Index? How does a B-Tree index speed up SELECT queries, and what is its write overhead?',
+      'Explain the difference between INNER JOIN, LEFT JOIN, and FULL OUTER JOIN in SQL with examples.',
+      'What is the difference between SQL (Relational) and NoSQL (Document/Key-Value) databases? When to pick MongoDB vs Postgres?'
+    ],
+    cn: [
+      'Explain what happens step-by-step when you type a URL like https://google.com in your browser and press Enter.',
+      'Compare TCP and UDP protocols. Why is TCP preferred for web pages while UDP is preferred for live video streaming?',
+      'Explain the 7 layers of the OSI model vs the 4 layers of TCP/IP model. On which layer does HTTP operate?',
+      'What is the difference between HTTP and HTTPS? Explain how the TLS/SSL handshake establishes a secure connection.',
+      'Explain DNS resolution process. What is the role of Recursive Resolver, TLD Server, and Authoritative Name Server?'
+    ],
+    oops: [
+      'Explain the 4 main pillars of Object-Oriented Programming (OOPS) with clean real-world code examples.',
+      'Compare Method Overloading (Compile-time Polymorphism) vs Method Overriding (Runtime Polymorphism).',
+      'What is an Abstract Class vs an Interface? When would you use an Abstract Class instead of an Interface?',
+      'Explain Encapsulation and Abstraction. How do access modifiers (private, protected, public) enforce data hiding?',
+      'What are SOLID principles in OOPS? Explain Single Responsibility and Dependency Inversion principles.'
+    ],
+    dsa: [
+      'How do you analyze the Time and Space Complexity of an algorithm using Big-O notation? Compare O(N log N) vs O(N^2).',
+      'Explain the concept of Dynamic Programming. How does memoization differ from tabulation in solving Fibonacci?',
+      'What is the difference between a BFS (Breadth-First Search) and DFS (Depth-First Search) traversal on a Graph?',
+      'Compare Array vs Linked List memory allocation. Why is random access O(1) in Arrays but O(N) in Linked Lists?',
+      'Explain the Two Pointer technique and Sliding Window pattern. In which array problems would you apply them?'
+    ],
+    system_design: [
+      'How would you design a scalable URL shortener service like Bitly? Explain database schema and hash generation.',
+      'What is Load Balancing? Compare Round-Robin vs Least Connections vs IP-Hash load balancing strategies.',
+      'Explain Caching strategies (Redis/Memcached). How do you handle cache invalidation and cache stampede?',
+      'What is Database Sharding vs Replication? How does master-slave replication work in distributed systems?'
+    ],
+    project: [
+      'Walk me through the architecture of your primary resume project. What tech stack did you choose and why?',
+      'Describe the hardest technical bug you encountered in your project. How did you trace and resolve it?',
+      'How did you handle authentication, data security, and API response performance in your project?'
+    ],
+    hr: [
+      'Tell me about a time when you had a disagreement with a teammate during a group project. How did you handle it?',
+      `Why do you want to join our team as a ${role}, and where do you see your technical growth in 3 years?`,
+      'Describe a situation where a project deadline was at risk. How did you prioritize your tasks to deliver on time?'
+    ],
+    mixed: [
+      `Introduce yourself in 60 seconds for a ${role} campus placement interview.`,
+      'Explain one project from your resume and your individual contribution.',
+      'Explain the difference between a Process and a Thread in Operating Systems.',
+      'What are ACID properties in Database Management Systems?',
+      'How do you analyze time complexity using Big-O notation? Give an example of O(N log N).'
+    ]
+  };
 
-  return baseQuestions.slice(0, clamp(questionCount, 3, 8)).map((text, index) => ({
+  const selectedList = questionBanks[focus] || questionBanks.mixed;
+  return selectedList.slice(0, clamp(questionCount, 3, 8)).map((text, index) => ({
     index,
     text,
     expectedSignals: [
       'structured answer',
-      'specific examples',
-      'technical clarity',
-      'measurable impact'
+      'technical depth',
+      'core concept clarity',
+      'practical example'
     ]
   }));
 }
@@ -170,27 +222,44 @@ async function generateInterviewQuestionSet({ targetRole, focusArea, difficulty,
     return localInterviewQuestionSet({ targetRole, focusArea, difficulty, questionCount });
   }
 
+  const focusDescriptions = {
+    os: 'Operating Systems (Process vs Thread, Deadlocks, Virtual Memory, CPU Scheduling, Synchronization)',
+    dbms: 'Database Management Systems & SQL (ACID, Normalization 1NF-3NF, B-Tree Indexes, SQL Joins, Transactions)',
+    cn: 'Computer Networks (OSI & TCP/IP Layers, TCP vs UDP, HTTP/HTTPS TLS Handshake, DNS Resolution)',
+    oops: 'Object-Oriented Programming (Inheritance, Polymorphism, Abstraction, Encapsulation, SOLID Principles)',
+    dsa: 'Data Structures & Algorithms (Big-O Complexity, Dynamic Programming, BFS/DFS, Trees, Arrays, Pointers)',
+    system_design: 'System Design & Architecture (Load Balancers, Caching, DB Sharding, Scalability, URL Shortener)',
+    project: 'Resume Project Deep Dive (Architecture, tech stack trade-offs, state management, security, bug fixes)',
+    hr: 'HR & Behavioural (STAR Method, teamwork, conflict resolution, career goals, problem solving)',
+    mixed: 'Comprehensive SDE Technical Panel (Mixed DSA, CS Fundamentals OS/DBMS/CN/OOPS, & Project questions)'
+  };
+
+  const focusText = focusDescriptions[focusArea?.toLowerCase()] || focusDescriptions.mixed;
+
   const prompt = [
-    'Generate mock interview questions for a placement candidate.',
+    'Generate specialized technical mock interview questions for a campus placement candidate.',
     `Target role: ${targetRole}`,
-    `Focus area: ${focusArea}`,
-    `Difficulty: ${difficulty}`,
-    `Question count: ${questionCount}`,
+    `Focus area: ${focusText}`,
+    `Difficulty level: ${difficulty}`,
+    `Number of questions: ${questionCount}`,
     '',
-    'Resume snippet:',
+    'Resume snippet (tailor questions to projects/skills if provided):',
     resumeText || '(not provided)',
     '',
-    'Return strict JSON array:',
+    'Instructions:',
+    '- Ask realistic technical interview questions expected in Tier-1 software company campus placements (Amazon, Google, TCS, Infosys, Wipro, Microsoft).',
+    `- Ensure questions focus specifically on: ${focusText}.`,
+    '- Return a strict JSON array with exact format:',
     '[',
-    '  {"index":0,"text":"...","expectedSignals":["...","..."]}',
+    '  {"index":0, "text":"...", "expectedSignals":["signal1", "signal2"]}',
     ']'
   ].join('\n');
 
   try {
     const rawText2 = await groqChat(
-      'You are an expert technical interviewer. Generate interview questions as a strict JSON array only, no extra text.',
+      'You are an expert technical interviewer for SDE campus placement drives. Return only strict JSON, no extra markdown text.',
       prompt,
-      { temperature: 0.45, maxTokens: 800 }
+      { temperature: 0.3, maxTokens: 1000 }
     );
     const parsed = parseModelJson(rawText2);
     if (!Array.isArray(parsed)) {
@@ -254,6 +323,8 @@ async function evaluateAnswer({ questionText, answerText, targetRole, difficulty
     '',
     `Question: ${questionText}`,
     `Answer: ${answerText}`,
+    '',
+    'Note: If candidate explicitly asks for help, hints, simpler questions, or topic changes, do not give a harsh 0 — score communication/confidence fairly for self-awareness.',
     '',
     'Return strict JSON:',
     '{',
@@ -336,26 +407,27 @@ async function generateInterviewerMessage({
   }
 
   const prompt = [
-    'You are a professional technical interviewer for campus placements. ' +
-    `Target role: ${session?.targetRole || 'Software Engineer'}`,
+    'You are a supportive, highly intelligent technical AI interviewer and placement coach.',
+    `Target role: ${session?.targetRole || 'Software Development Engineer (SDE)'}`,
     `Focus area: ${session?.focusArea || 'mixed'}`,
     `Difficulty: ${session?.difficulty || 'medium'}`,
     `First turn: ${isFirstTurn ? 'yes' : 'no'}`,
     `Flow complete: ${isFlowComplete ? 'yes' : 'no'}`,
-    `Candidate answer: ${candidateAnswer || '(none)'}`,
+    `Candidate spoken response: ${candidateAnswer || '(none)'}`,
     `Evaluation feedback: ${evaluation?.feedback || '(none)'}`,
-    `Next question: ${nextQuestionText || '(none)'}`,
+    `Scheduled next question: ${nextQuestionText || '(none)'}`,
     '',
-    'Write one natural interviewer response (max 80 words).',
-    'Sound like a real human interviewer — conversational, professional, and encouraging.',
-    'Acknowledge the candidate\'s answer briefly, then transition naturally to the next question.',
-    'If flow is complete, wrap up warmly and ask them to click Finish for their report.',
-    'Do not use bullet points. Write in natural spoken sentences.'
+    'CRITICAL CONVERSATIONAL ADAPTATION INSTRUCTIONS:',
+    '1. Check candidate spoken response for any request for help, simpler/basic questions, hints, or topic changes.',
+    '2. If candidate asks for basic/simpler questions or says they struggle: Warmly acknowledge them ("No problem at all! Let\'s step back to the basics..."), give a brief 1-sentence hint or explanation, and ask an easier foundational question instead.',
+    '3. If candidate requests a specific subject (e.g. OS, DBMS, DSA, OOPS, CN, Projects): Immediately adapt to that subject for the next question!',
+    '4. Otherwise: Briefly acknowledge their answer with concise constructive feedback (1 sentence), then transition smoothly to the next question.',
+    '5. Sound 100% natural, empathetic, and human — like ChatGPT Voice Mode. Keep response under 70 words. Do not use bullet points or markdown syntax since this will be spoken aloud.'
   ].join('\n');
 
   try {
     const interviewerText = await groqChat(
-      'You are a professional technical interviewer conducting a campus placement interview.',
+      'You are a natural, empathetic AI technical interviewer like ChatGPT Voice Mode. Speak conversationally and adapt dynamically to candidate requests.',
       prompt,
       { temperature: 0.7, maxTokens: 300 }
     );
@@ -795,6 +867,76 @@ aiSuiteRouter.post('/mock-interview/finish', async (req, res, next) => {
         answers: session.answers,
         conversationTurns: session.conversationTurns
       }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/ai-suite/tutor/chat
+aiSuiteRouter.post('/tutor/chat', async (req, res, next) => {
+  try {
+    const { message, turns = [], resumeText = '' } = req.body ?? {};
+    const userMsg = String(message || '').trim();
+
+    if (!userMsg) {
+      return res.status(400).json({ success: false, message: 'Message is required' });
+    }
+
+    if (!hasGroq()) {
+      let localReply = `That's a great topic to practice! Can you explain the fundamental principles behind it?`;
+      if (userMsg.toLowerCase().includes('data structure') || userMsg.toLowerCase().includes('dsa')) {
+        localReply = `Data Structures is essential for placements! Let me ask: What is the main difference between an Array and a Linked List in memory allocation?`;
+      } else if (userMsg.toLowerCase().includes('operating system') || userMsg.toLowerCase().includes('os')) {
+        localReply = `Operating Systems is a core placement subject! What is the difference between a Process and a Thread?`;
+      } else if (userMsg.toLowerCase().includes('dbms') || userMsg.toLowerCase().includes('sql')) {
+        localReply = `Database Systems & SQL! Explain what ACID properties mean in database transactions with an example.`;
+      }
+      return res.json({ success: true, reply: localReply });
+    }
+
+    const conversationContext = turns
+      .slice(-8)
+      .map(t => `${t.role === 'interviewer' ? 'AI Tutor' : 'Candidate'}: ${t.text}`)
+      .join('\n');
+
+    const prompt = [
+      'You are a supportive, highly intelligent AI Voice Placement Tutor.',
+      'Your goal is to conduct a natural 1-on-1 voice interview practice session like ChatGPT Voice Mode.',
+      '',
+      'Recent Conversation History:',
+      conversationContext || '(None yet)',
+      '',
+      `Latest Candidate Spoken Input: "${userMsg}"`,
+      '',
+      'CRITICAL CHATGPT-VOICE-MODE RULES:',
+      '1. IMMEDIATE TOPIC SWITCHING & NEGATION HANDLING:',
+      '   - TOPIC REQUEST: If candidate asks to switch to a subject (e.g. "Data Structures", "DSA", "OS", "OOPS", "DBMS"): IMMEDIATELY switch to that requested subject! Acknowledge in 5 words and ask a question on the NEW subject right away!',
+      '   - NEGATION / REJECTION: If candidate says "I don\'t know X", "didn\'t prepare X", "skip X", or "avoid X" (e.g. "I didn\'t prepare System Design"): DO NOT ASK QUESTIONS ON X! Immediately apologize in 5 words and switch to a subject they prefer (e.g. Data Structures or OOPS)!',
+      '2. TEACHING & TUTORIAL REQUESTS (TOP PRIORITY):',
+      '   - If candidate asks "explain X to me", "teach me X", "give me a tutorial on X", "tell me what X is", or "stop asking questions":',
+      '     IMMEDIATELY STOP ASKING QUESTIONS! Give a warm, clear 2-3 sentence concept explanation of X (e.g. explaining Hash Tables with key-value pairs, hash functions, and O(1) lookup time). End by asking warmly: "Does this concept make sense, or would you like a quick example?"',
+      '3. SKIP & NEXT QUESTION REQUESTS: If candidate says "skip this question", "next question", or "ask another question": Instantly drop the current question and ask a brand-new technical question!',
+      '4. NEVER FORCE PREVIOUS TOPICS: Never force the candidate back to a topic they rejected or asked to leave (e.g. if candidate rejected System Design or DBMS, NEVER say "Let\'s get back to System Design"). Obey their preference instantly!',
+      '5. CONSTRUCTIVE FEEDBACK & IDEAL ANSWER ENHANCEMENT (CRITICAL):',
+      '   - When candidate attempts an answer to your question:',
+      '     1. Praise what they got right in 1 short sentence.',
+      '     2. Provide the IDEAL / OPTIMAL interview answer or key missing detail in 1-2 concise spoken sentences (e.g. "A better way to phrase this in an interview is...").',
+      '     3. Then ask the next technical question on the topic!',
+      '6. DIRECT TECHNICAL PLACEMENT QUESTIONS: Ask clear, practical technical interview questions (e.g. Hash Tables, Arrays, Linked Lists, Stacks, OS Processes/Threads, SQL Joins). Avoid meta-questions like "What do you think is challenging?".',
+      '7. PATIENCE ON PAUSE: If candidate says "wait", "give me a second", "hold on", or asks for time: Warmly reply "Take all the time you need! I am right here whenever you are ready."',
+      '8. CONVERSATIONAL VOICE FORMAT: Write in clean, natural spoken English (max 60 words). No markdown, bullet points, or code blocks since this is spoken aloud via Text-to-Speech.'
+    ].join('\n');
+
+    const aiReply = await groqChat(
+      'You are a dynamic, supportive AI Voice Placement Tutor & Teacher like ChatGPT Voice Mode. You teach concepts when requested, provide ideal answer explanations, handle topic switches instantly, and help students master interview answers.',
+      prompt,
+      { temperature: 0.6, maxTokens: 260 }
+    );
+
+    return res.json({
+      success: true,
+      reply: aiReply || `Let's keep practicing! Tell me more about your thoughts on this topic.`
     });
   } catch (err) {
     next(err);

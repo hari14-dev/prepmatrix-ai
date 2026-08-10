@@ -26,6 +26,29 @@ import { apiRequest, apiUpload } from '../../lib/api.js';
 import { Bot, Mic, MicOff, BarChart2, Trophy, TrendingUp, BookOpen, CheckCircle2, XCircle, Square, FileText } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 
+/* ── Voice gender selector helper ─────────────────────── */
+function getVoiceForGender(gender = 'male') {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices || voices.length === 0) return null;
+
+  const englishVoices = voices.filter(v => v.lang && v.lang.startsWith('en'));
+  const pool = englishVoices.length > 0 ? englishVoices : voices;
+
+  if (gender === 'female') {
+    return (
+      pool.find(v => /female|zira|samantha|victoria|karen|caren|fiona|veena|google US English/i.test(v.name)) ||
+      pool[0]
+    );
+  } else {
+    return (
+      pool.find(v => /male|david|mark|george|alex|rishi|google UK English Male/i.test(v.name)) ||
+      pool.find(v => !/female|zira|samantha|victoria|karen|caren|fiona|veena/i.test(v.name)) ||
+      pool[0]
+    );
+  }
+}
+
 /* ── Score ring component ─────────────────────────────── */
 function ScoreRing({ value, size = 80, label }) {
   const safe  = Math.max(0, Math.min(100, value || 0));
@@ -300,7 +323,7 @@ function ResumeAnalyzer({ sharedResumeText, onResumeChange }) {
 /* ══════════════════════════════════════════════════════
    SECTION 2 — Voice Mock Interview (Real Conversation Flow)
    ══════════════════════════════════════════════════════ */
-function MockInterview({ sharedResumeText, onResumeChange }) {
+function MockInterview({ sharedResumeText, onResumeChange, mode = 'mock' }) {
   const { token } = useAuth();
 
   // Config
@@ -350,6 +373,7 @@ function MockInterview({ sharedResumeText, onResumeChange }) {
   const [isSpeaking,      setIsSpeaking]       = useState(false);
   const [isListening,     setIsListening]      = useState(false);
   const [voiceMode,       setVoiceMode]        = useState(true);  // true = voice-first, false = text mode
+  const [voiceGender,     setVoiceGender]      = useState('male');  // 'male' | 'female'
   const [interimText,     setInterimText]      = useState('');    // live transcript while speaking
   const [error,           setError]            = useState('');
   const [statusMsg,       setStatusMsg]        = useState('');    // e.g. "Listening...", "AI is thinking..."
@@ -392,16 +416,16 @@ function MockInterview({ sharedResumeText, onResumeChange }) {
         setInterimText('');
       }
 
-      // Hands-Free VAD Silence Detection (ChatGPT Voice Mode):
+      // Hands-Free VAD Silence Detection:
       // Reset silence timer on every detected speech snippet.
-      // If 1.8 seconds pass with no further speech, auto-submit the answer!
+      // 5.5 seconds pause allows candidate to think mid-sentence without being cut off!
       clearTimeout(silenceTimerRef.current);
       if (voiceMode) {
         silenceTimerRef.current = setTimeout(() => {
           if (isListeningRef.current) {
             submitRef.current?.();
           }
-        }, 1800);
+        }, 5500);
       }
     };
     rec.onend  = () => {
@@ -448,8 +472,10 @@ function MockInterview({ sharedResumeText, onResumeChange }) {
     const u       = new SpeechSynthesisUtterance(text);
     u.lang        = 'en-IN';
     u.rate        = 0.92;
-    u.pitch       = 1.05;
+    u.pitch       = voiceGender === 'female' ? 1.05 : 0.92;
     u.volume      = 1;
+    const selectedVoice = getVoiceForGender(voiceGender);
+    if (selectedVoice) u.voice = selectedVoice;
 
     u.onstart = () => { setIsSpeaking(true); setStatusMsg('Interviewer is speaking…'); };
     u.onend   = () => {
@@ -592,17 +618,19 @@ function MockInterview({ sharedResumeText, onResumeChange }) {
 
   /* ── Render: not started ── */
   if (!sessionId) {
+    const isTutor = mode === 'tutor';
     return (
       <div className="card soft-card">
         <div className="row gap-sm" style={{ marginBottom: '1.25rem' }}>
-          <Mic size={20} strokeWidth={1.75} style={{color:'var(--green)'}}/>
+          <Mic size={22} strokeWidth={1.75} style={{ color: isTutor ? 'var(--cyan)' : 'var(--green)' }} />
           <div>
-            <h2 style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--tx-1)' }}>
-              Voice Mock Interview
+            <h2 style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--tx-1)' }}>
+              {isTutor ? 'AI Voice Tutor & Practice Assistant' : 'Real Company Mock Interview'}
             </h2>
-            <p className="t-sm">
-              A real voice conversation — the AI interviewer speaks, you answer by voice.
-              It auto-listens after each question, just like a real interview call.
+            <p className="t-sm" style={{ color: 'var(--tx-3)', marginTop: '0.2rem' }}>
+              {isTutor
+                ? 'An interactive ChatGPT-style voice tutor. Ask for hints, concept explanations, or simpler questions anytime — the AI tutor adapts to your pace in real-time!'
+                : 'A strict company campus placement panel simulation. Standardized round with technical, communication, and confidence scorecard evaluation.'}
             </p>
           </div>
         </div>
@@ -639,23 +667,16 @@ function MockInterview({ sharedResumeText, onResumeChange }) {
           )}
         </div>
 
+
+
         {/* Config grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px,1fr))', gap: '0.75rem', marginBottom: '1.25rem' }}>
           <div className="field">
             <span className="label">Target Role</span>
-            <input className="input" value={targetRole} onChange={e => setTargetRole(e.target.value)} placeholder="Software Engineer Intern" />
+            <input className="input" value={targetRole} onChange={e => setTargetRole(e.target.value)} placeholder="Software Development Engineer (SDE)" />
           </div>
           <div className="field">
-            <span className="label">Focus Area</span>
-            <select className="select" value={focusArea} onChange={e => setFocusArea(e.target.value)}>
-              <option value="mixed">Mixed (recommended)</option>
-              <option value="technical">Technical</option>
-              <option value="hr">HR / Behavioural</option>
-              <option value="project">Project Deep Dive</option>
-            </select>
-          </div>
-          <div className="field">
-            <span className="label">Difficulty</span>
+            <span className="label">Difficulty Level</span>
             <select className="select" value={difficulty} onChange={e => setDifficulty(e.target.value)}>
               <option value="easy">Easy</option>
               <option value="medium">Medium</option>
@@ -851,6 +872,12 @@ function MockInterview({ sharedResumeText, onResumeChange }) {
                 ? 'Listen to the interviewer question'
                 : 'Continuous voice interaction active'}
             </p>
+            <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.4rem', justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
+              <span className="t-xs" style={{ color: 'rgba(255,255,255,0.65)' }}>Say anytime:</span>
+              <span className="t-xs" style={{ background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.2)', padding: '0.15rem 0.55rem', borderRadius: 99, color: '#ffffff' }}>💡 "Ask me simpler questions"</span>
+              <span className="t-xs" style={{ background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.2)', padding: '0.15rem 0.55rem', borderRadius: 99, color: '#ffffff' }}>⚙️ "Switch to OS / DBMS / DSA"</span>
+              <span className="t-xs" style={{ background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.2)', padding: '0.15rem 0.55rem', borderRadius: 99, color: '#ffffff' }}>❓ "Give me a hint"</span>
+            </div>
           </div>
 
           {(isSpeaking || isListening) && (
@@ -923,18 +950,19 @@ function MockInterview({ sharedResumeText, onResumeChange }) {
             </div>
           ))}
 
-          {/* Live interim transcript bubble */}
-          {interimText && (
+          {/* Live pending speech/answer bubble — Never vanishes during pauses */}
+          {(answerDraft.trim() || interimText.trim()) && (
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <div style={{
-                maxWidth: '80%', padding: '0.65rem 1rem',
+                maxWidth: '82%', padding: '0.70rem 1rem',
                 borderRadius: 'var(--r-lg) var(--r-sm) var(--r-lg) var(--r-lg)',
-                background: 'rgba(74,155,143,0.08)', border: '1px dashed rgba(74,155,143,0.35)',
-                fontSize: '0.88rem', color: 'var(--tx-3)', fontStyle: 'italic',
+                background: 'rgba(58,92,216,0.18)', border: '1px dashed rgba(58,92,216,0.4)',
+                fontSize: '0.9rem', lineHeight: 1.6, color: 'var(--tx-1)',
               }}>
-                <p style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--cyan)',
-                  textTransform: 'uppercase', marginBottom: '0.2rem' }}><Mic size={12} strokeWidth={2} style={{marginRight:'0.25rem'}}/>Speaking…</p>
-                {interimText}
+                <span style={{ fontWeight: 700, fontSize: '0.68rem', color: 'var(--cyan)', textTransform: 'uppercase', display: 'block', marginBottom: '0.25rem' }}>
+                  You {isSubmitting ? '(Processing answer…)' : '(Speaking…)'}
+                </span>
+                {(answerDraft + (interimText ? ` ${interimText}` : '')).trim()}
               </div>
             </div>
           )}
@@ -1051,10 +1079,478 @@ function MockInterview({ sharedResumeText, onResumeChange }) {
   );
 }
 /* ══════════════════════════════════════════════════════
-   MAIN PAGE — Tab switcher between the two sections
+   SECTION 3 — Direct ChatGPT-Style AI Voice Assistant
+   ══════════════════════════════════════════════════════ */
+function DirectVoiceAssistant({ sharedResumeText }) {
+  const { token } = useAuth();
+  const [isActive,    setIsActive]    = useState(false);
+  const [isSpeaking,  setIsSpeaking]  = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isThinking,  setIsThinking]  = useState(false);
+  const [interimText, setInterimText] = useState('');
+  const [answerDraft, setAnswerDraft] = useState('');
+  const [turns,       setTurns]       = useState([]);
+  const [error,       setError]       = useState('');
+  const [statusMsg,   setStatusMsg]   = useState('');
+
+  const recognitionRef  = useRef(null);
+  const silenceTimerRef = useRef(null);
+  const isListeningRef  = useRef(false);
+  const chatEndRef      = useRef(null);
+  const autoSubmitRef   = useRef(null);
+
+  const canSpeak  = typeof window !== 'undefined' && 'speechSynthesis' in window;
+  const canListen = typeof window !== 'undefined' &&
+    ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+
+  const isActiveRef   = useRef(false);
+  const isSpeakingRef = useRef(false);
+  const isThinkingRef = useRef(false);
+
+  const [autoSend, setAutoSend] = useState(true); // true = auto 5.5s VAD, false = manual submit
+  const autoSendRef = useRef(true);
+
+  useEffect(() => { isListeningRef.current = isListening; }, [isListening]);
+  useEffect(() => { isActiveRef.current = isActive; }, [isActive]);
+  useEffect(() => { isSpeakingRef.current = isSpeaking; }, [isSpeaking]);
+  useEffect(() => { isThinkingRef.current = isThinking; }, [isThinking]);
+  useEffect(() => { autoSendRef.current = autoSend; }, [autoSend]);
+  useEffect(() => { autoSubmitRef.current = handleUserSpoke; });
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [turns, interimText]);
+
+  /* Speech recognition setup */
+  useEffect(() => {
+    if (!canListen) return;
+    const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const rec  = new Ctor();
+    rec.lang            = 'en-IN';
+    rec.continuous      = true;
+    rec.interimResults  = true;
+
+    rec.onresult = e => {
+      // Auto Voice Interrupt (Barge-In): Stop AI speech immediately when candidate talks
+      if (isSpeakingRef.current) {
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+        }
+        setIsSpeaking(false);
+      }
+
+      let finalAcc   = '';
+      let interimAcc = '';
+
+      for (let i = 0; i < e.results.length; i++) {
+        const text = e.results[i][0]?.transcript || '';
+        if (e.results[i].isFinal) {
+          finalAcc += text + ' ';
+        } else {
+          interimAcc += text;
+        }
+      }
+
+      setAnswerDraft(finalAcc.trim());
+      setInterimText(interimAcc.trim());
+
+      // Adaptive VAD Silence Timer:
+      // Short responses (<= 4 words like "DBMS"): 2.0s delay for quick replies
+      // Long explanations (> 4 words): 5.5s generous delay to allow thinking mid-sentence
+      clearTimeout(silenceTimerRef.current);
+      if (autoSendRef.current) {
+        const totalWords = (finalAcc + ' ' + interimAcc).trim().split(/\s+/).filter(Boolean).length;
+        const adaptiveDelay = totalWords <= 4 ? 2000 : 5500;
+
+        silenceTimerRef.current = setTimeout(() => {
+          if (isListeningRef.current) {
+            autoSubmitRef.current?.();
+          }
+        }, adaptiveDelay);
+      }
+    };
+
+    rec.onend  = () => {
+      clearTimeout(silenceTimerRef.current);
+      setInterimText('');
+      // Continuous Voice Loop: Silently keep mic alive without flicking isListening state
+      if (isActiveRef.current && !isSpeakingRef.current && !isThinkingRef.current) {
+        try { rec.start(); } catch {}
+      } else {
+        setIsListening(false);
+      }
+    };
+    rec.onerror = () => {
+      clearTimeout(silenceTimerRef.current);
+      setInterimText('');
+      if (isActiveRef.current && !isSpeakingRef.current && !isThinkingRef.current) {
+        setTimeout(() => { try { rec.start(); } catch {} }, 400);
+      } else {
+        setIsListening(false);
+      }
+    };
+    recognitionRef.current = rec;
+    return () => { clearTimeout(silenceTimerRef.current); try { rec.stop(); } catch {} };
+  }, []);
+
+  const [voiceGender, setVoiceGender] = useState('male'); // 'male' | 'female'
+
+  const speakText = (text, autoListenAfter = true) => {
+    if (!canSpeak) return;
+    window.speechSynthesis.cancel();
+    const u  = new SpeechSynthesisUtterance(text);
+    u.lang   = 'en-IN';
+    u.rate   = 0.93;
+    u.pitch  = voiceGender === 'female' ? 1.05 : 0.92;
+    const selectedVoice = getVoiceForGender(voiceGender);
+    if (selectedVoice) u.voice = selectedVoice;
+
+    u.onstart = () => { setIsSpeaking(true); setStatusMsg('AI Voice Assistant Speaking…'); };
+    u.onend   = () => {
+      setIsSpeaking(false);
+      setStatusMsg('');
+      if (autoListenAfter && canListen) {
+        setTimeout(() => startListening(), 700);
+      }
+    };
+    u.onerror = () => { setIsSpeaking(false); setStatusMsg(''); };
+    window.speechSynthesis.speak(u);
+  };
+
+  const startListening = () => {
+    const rec = recognitionRef.current;
+    if (!rec || isListeningRef.current) return;
+    setAnswerDraft('');
+    setInterimText('');
+    setIsListening(true);
+    setStatusMsg('Listening… speak naturally');
+    try { rec.start(); } catch {}
+  };
+
+  const stopListening = () => {
+    const rec = recognitionRef.current;
+    if (rec) try { rec.stop(); } catch {}
+    setIsListening(false);
+    setInterimText('');
+    setStatusMsg('');
+  };
+
+  const startAssistantSession = () => {
+    setIsActive(true);
+    setError('');
+    const greeting = "Hello! I am your AI Placement Tutor. What CS topic would you like to revise today — Operating Systems, DBMS SQL, Data Structures, or OOPS? Or ask me any question!";
+    setTurns([{ role: 'interviewer', text: greeting }]);
+    setTimeout(() => speakText(greeting, true), 400);
+  };
+
+  const handleTopicSelect = async (topicName) => {
+    if (canSpeak) window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+    stopListening();
+    
+    const text = `Let's switch to ${topicName}`;
+    const newTurns = [...turns, { role: 'candidate', text }];
+    setTurns(newTurns);
+    setAnswerDraft('');
+    setInterimText('');
+    setIsThinking(true);
+    setStatusMsg(`Switching to ${topicName}…`);
+
+    try {
+      const res = await apiRequest('/api/ai-suite/tutor/chat', {
+        method: 'POST', token,
+        body: { message: text, turns: newTurns, resumeText: sharedResumeText }
+      });
+      const aiReply = res.reply || `Sure, let's practice ${topicName}! Here is a question for you.`;
+      setTurns(prev => [...prev, { role: 'interviewer', text: aiReply }]);
+      setIsThinking(false);
+      speakText(aiReply, true);
+    } catch {
+      setIsThinking(false);
+      startListening();
+    }
+  };
+
+  const handleUserSpoke = async () => {
+    const text = (answerDraft + (interimText ? ` ${interimText}` : '')).trim();
+    if (!text) return;
+
+    stopListening();
+    if (canSpeak) window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+
+    const newTurns = [...turns, { role: 'candidate', text }];
+    setTurns(newTurns);
+    setAnswerDraft('');
+    setInterimText('');
+    setIsThinking(true);
+    setStatusMsg('AI Tutor is thinking…');
+
+    try {
+      const res = await apiRequest('/api/ai-suite/tutor/chat', {
+        method: 'POST', token,
+        body: { message: text, turns: newTurns, resumeText: sharedResumeText }
+      });
+
+      const aiReply = res.reply || `Got it! Tell me more about your thoughts on this topic.`;
+      setTurns(prev => [...prev, { role: 'interviewer', text: aiReply }]);
+      speakText(aiReply, true);
+    } catch {
+      const fallbackReply = `That's a great topic! Can you explain the main technical concept behind it?`;
+      setTurns(prev => [...prev, { role: 'interviewer', text: fallbackReply }]);
+      speakText(fallbackReply, true);
+    } finally {
+      setIsThinking(false);
+    }
+  };
+
+  const stopAssistantSession = () => {
+    isActiveRef.current   = false;
+    isSpeakingRef.current = false;
+    isThinkingRef.current = false;
+    isListeningRef.current = false;
+
+    clearTimeout(silenceTimerRef.current);
+    clearTimeout(autoListenTimer.current);
+
+    if (canSpeak && typeof window !== 'undefined') {
+      try { window.speechSynthesis.cancel(); } catch {}
+    }
+    
+    const rec = recognitionRef.current;
+    if (rec) {
+      try { rec.abort(); } catch {}
+      try { rec.stop(); } catch {}
+    }
+
+    setIsActive(false);
+    setIsSpeaking(false);
+    setIsListening(false);
+    setIsThinking(false);
+    setAnswerDraft('');
+    setInterimText('');
+    setStatusMsg('');
+  };
+
+  return (
+    <div className="card soft-card" style={{ padding: '1.5rem', minHeight: 500 }}>
+      {!isActive && turns.length === 0 ? (
+        /* Initial Centered Landing Stage */
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 1.5rem', textAlign: 'center', gap: '1.5rem' }}>
+          <div className="voice-orb-stage idle" style={{ width: '100%', maxWidth: 560, padding: '2.5rem 1.5rem' }}>
+            <div className="voice-orb-glow" />
+            <div className="voice-orb-core" style={{ width: 110, height: 110 }}>
+              <Bot size={52} style={{ color: 'var(--indigo-light)' }} />
+            </div>
+            <div style={{ marginTop: '1.25rem', zIndex: 2 }}>
+              <p style={{ fontWeight: 800, fontSize: '1.2rem', color: '#ffffff' }}>
+                AI Voice Tutor & Practice Assistant
+              </p>
+              <p className="t-xs" style={{ color: 'rgba(255,255,255,0.7)', marginTop: '0.35rem', maxWidth: 440, lineHeight: 1.5 }}>
+                Direct 1-on-1 interactive voice tutoring. Tap start to practice any CS concept (OS, DBMS, DSA, OOPS), ask for hints, or get step-by-step guidance!
+              </p>
+            </div>
+          </div>
+
+          <button
+            className="btn btn-primary btn-glow"
+            style={{ padding: '0.85rem 2.5rem', fontSize: '1.05rem', borderRadius: 'var(--r-full)' }}
+            onClick={startAssistantSession}
+          >
+            Start AI Voice Assistant
+          </button>
+        </div>
+      ) : (
+        /* Active 2-Column Split Layout */
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 340px) 1fr', gap: '1.25rem', width: '100%', alignItems: 'stretch' }}>
+          
+          {/* Left Column: Compact Voice Stage & Controls */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div className={`voice-orb-stage ${isSpeaking ? 'speaking' : isThinking ? 'evaluating' : 'listening'}`}
+              style={{ flex: 1, minHeight: 340, padding: '1.5rem 1rem' }}>
+              <div className="voice-orb-glow" />
+              <div className="voice-orb-core" style={{ width: 95, height: 95 }}>
+                {isSpeaking ? <Bot size={44} style={{ color: '#ffffff' }} /> :
+                 isThinking ? <span className="spinner" style={{ width: 36, height: 36, borderWidth: 3, borderTopColor: 'var(--amber)' }} /> :
+                 <Mic size={44} style={{ color: '#ffffff' }} />}
+              </div>
+
+              <div className="voice-wave-bars" style={{ height: 26, marginTop: '1rem' }}>
+                <div className="voice-wave-bar" />
+                <div className="voice-wave-bar" />
+                <div className="voice-wave-bar" />
+                <div className="voice-wave-bar" />
+                <div className="voice-wave-bar" />
+              </div>
+
+              <div style={{ marginTop: '0.85rem', textAlign: 'center', zIndex: 2 }}>
+                <p style={{ fontWeight: 800, fontSize: '0.95rem', color: '#ffffff' }}>
+                  {isSpeaking ? 'AI Voice Tutor Speaking…' :
+                   isThinking ? 'Thinking & Responding…' :
+                   'Listening (Hands-Free)…'}
+                </p>
+                <p className="t-xs" style={{ color: 'rgba(255,255,255,0.65)', marginTop: '0.2rem' }}>
+                  {isSpeaking ? 'Please wait while AI responds' :
+                   isThinking ? 'Processing your response' :
+                   autoSend ? 'Speak naturally — 5.5s pause sends answer' : 'Manual Mode — Tap "Send Answer Now" when finished'}
+                </p>
+
+                {/* Voice Persona & Auto-Send Toggles */}
+                <div style={{ marginTop: '0.65rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span className="t-xs" style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Voice Persona:</span>
+                    <div style={{ display: 'flex', gap: '0.2rem', background: 'rgba(255,255,255,0.12)', padding: '0.15rem', borderRadius: 99 }}>
+                      <button
+                        onClick={() => setVoiceGender('male')}
+                        style={{
+                          padding: '0.25rem 0.65rem', borderRadius: 99, border: 'none',
+                          background: voiceGender === 'male' ? 'var(--indigo)' : 'transparent',
+                          color: '#fff', fontSize: '0.72rem', cursor: 'pointer', fontWeight: 600
+                        }}
+                      >
+                        Male
+                      </button>
+                      <button
+                        onClick={() => setVoiceGender('female')}
+                        style={{
+                          padding: '0.25rem 0.65rem', borderRadius: 99, border: 'none',
+                          background: voiceGender === 'female' ? 'var(--indigo)' : 'transparent',
+                          color: '#fff', fontSize: '0.72rem', cursor: 'pointer', fontWeight: 600
+                        }}
+                      >
+                        Female
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span className="t-xs" style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Auto-Send:</span>
+                    <div style={{ display: 'flex', gap: '0.2rem', background: 'rgba(255,255,255,0.12)', padding: '0.15rem', borderRadius: 99 }}>
+                      <button
+                        onClick={() => setAutoSend(true)}
+                        style={{
+                          padding: '0.25rem 0.65rem', borderRadius: 99, border: 'none',
+                          background: autoSend ? 'var(--indigo)' : 'transparent',
+                          color: '#fff', fontSize: '0.72rem', cursor: 'pointer', fontWeight: 600
+                        }}
+                      >
+                        Auto (5.5s)
+                      </button>
+                      <button
+                        onClick={() => setAutoSend(false)}
+                        style={{
+                          padding: '0.25rem 0.65rem', borderRadius: 99, border: 'none',
+                          background: !autoSend ? 'var(--indigo)' : 'transparent',
+                          color: '#fff', fontSize: '0.72rem', cursor: 'pointer', fontWeight: 600
+                        }}
+                      >
+                        Manual
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginTop: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', width: '100%', zIndex: 2 }}>
+                <span className="t-xs" style={{ color: 'rgba(255,255,255,0.65)', textAlign: 'center', fontWeight: 600 }}>Quick Topic Switch:</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', justifyContent: 'center' }}>
+                  {['Data Structures', 'DBMS SQL', 'Operating Systems', 'OOPS'].map(topic => (
+                    <button
+                      key={topic}
+                      onClick={() => handleTopicSelect(topic)}
+                      style={{
+                        background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.18)',
+                        padding: '0.25rem 0.6rem', borderRadius: 99, color: '#ffffff',
+                        fontSize: '0.72rem', cursor: 'pointer', fontWeight: 600,
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {topic}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {(answerDraft || interimText) && (
+              <button
+                className="btn btn-primary btn-glow"
+                style={{ width: '100%', padding: '0.65rem', borderRadius: 'var(--r-md)', fontSize: '0.88rem' }}
+                onClick={handleUserSpoke}
+              >
+                Send Answer Now
+              </button>
+            )}
+
+            <button
+              className="btn btn-danger"
+              style={{ width: '100%', padding: '0.65rem', borderRadius: 'var(--r-md)' }}
+              onClick={stopAssistantSession}
+            >
+              End Voice Session
+            </button>
+          </div>
+
+          {/* Right Column: Full-Height Live Voice Transcript */}
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 460 }}>
+            <div style={{ padding: '0 0 0.5rem 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <p style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--tx-1)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Live Voice Transcript
+              </p>
+              <span className="pill pill-cyan">Interactive Voice Mode</span>
+            </div>
+
+            <div style={{
+              flex: 1, minHeight: 420, maxHeight: 520, overflowY: 'auto',
+              padding: '1rem', borderRadius: 'var(--r-lg)',
+              background: 'var(--bg-input)', border: '1px solid var(--b-2)',
+              display: 'flex', flexDirection: 'column', gap: '0.75rem'
+            }}>
+              {turns.map((turn, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: turn.role === 'interviewer' ? 'flex-start' : 'flex-end' }}>
+                  <div style={{
+                    maxWidth: '82%', padding: '0.75rem 1rem',
+                    borderRadius: turn.role === 'interviewer' ? 'var(--r-sm) var(--r-lg) var(--r-lg) var(--r-lg)' : 'var(--r-lg) var(--r-sm) var(--r-lg) var(--r-lg)',
+                    background: turn.role === 'interviewer' ? 'var(--bg-elevated)' : 'var(--indigo-dim)',
+                    border: `1px solid ${turn.role === 'interviewer' ? 'var(--b-2)' : 'rgba(58,92,216,0.3)'}`,
+                    fontSize: '0.9rem', lineHeight: 1.6, color: 'var(--tx-1)',
+                  }}>
+                    <span style={{ fontWeight: 700, fontSize: '0.7rem', color: turn.role === 'interviewer' ? 'var(--indigo-light)' : 'var(--cyan)', textTransform: 'uppercase', display: 'block', marginBottom: '0.25rem' }}>
+                      {turn.role === 'interviewer' ? 'AI Voice Tutor' : 'You'}
+                    </span>
+                    {turn.text}
+                  </div>
+                </div>
+              ))}
+
+              {(answerDraft.trim() || interimText.trim()) && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <div style={{
+                    maxWidth: '82%', padding: '0.70rem 1rem',
+                    borderRadius: 'var(--r-lg) var(--r-sm) var(--r-lg) var(--r-lg)',
+                    background: 'rgba(58,92,216,0.18)', border: '1px dashed rgba(58,92,216,0.4)',
+                    fontSize: '0.9rem', lineHeight: 1.6, color: 'var(--tx-1)',
+                  }}>
+                    <span style={{ fontWeight: 700, fontSize: '0.68rem', color: 'var(--cyan)', textTransform: 'uppercase', display: 'block', marginBottom: '0.25rem' }}>
+                      You {isThinking ? '(Processing answer…)' : '(Speaking…)'}
+                    </span>
+                    {(answerDraft + (interimText ? ` ${interimText}` : '')).trim()}
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════
+   MAIN PAGE — Tab switcher between the three sections
    ══════════════════════════════════════════════════════ */
 export function AISuitePage() {
-  const [activeTab,      setActiveTab]      = useState('resume'); // 'resume' | 'interview'
+  const [activeTab,      setActiveTab]      = useState('resume'); // 'resume' | 'interview' | 'tutor'
   const [sharedResume,   setSharedResume]   = useState('');
 
   return (
@@ -1067,8 +1563,8 @@ export function AISuitePage() {
         </span>
         <h1 className="hero-title">AI Career Suite</h1>
         <p className="muted-text" style={{ marginTop: '0.4rem', maxWidth: 560 }}>
-          AI-powered tools to prepare for real placements. Analyze your resume and
-          practice with a voice-enabled AI interviewer.
+          AI-powered tools to prepare for real placements. Analyze your resume, practice with
+          a strict company mock interviewer, or talk directly with an AI voice tutor.
         </p>
       </div>
 
@@ -1077,10 +1573,12 @@ export function AISuitePage() {
         display: 'flex', gap: '0', marginBottom: '1.5rem',
         background: 'var(--bg-elevated)', border: '1px solid var(--b-2)',
         borderRadius: 'var(--r-lg)', padding: '0.3rem', width: 'fit-content',
+        flexWrap: 'wrap',
       }}>
         {[
           { id: 'resume',    label: 'ATS Resume Analyzer' },
-          { id: 'interview', label: 'Voice Mock Interview' },
+          { id: 'interview', label: 'Real Mock Interview' },
+          { id: 'tutor',     label: 'AI Voice Tutor & Practice Assistant' },
         ].map(tab => (
           <button
             key={tab.id}
@@ -1104,10 +1602,15 @@ export function AISuitePage() {
       </div>
 
       {/* ── Active section ── */}
-      {activeTab === 'resume'
-        ? <ResumeAnalyzer sharedResumeText={sharedResume} onResumeChange={setSharedResume} />
-        : <MockInterview sharedResumeText={sharedResume} onResumeChange={setSharedResume} />
-      }
+      {activeTab === 'resume' && (
+        <ResumeAnalyzer sharedResumeText={sharedResume} onResumeChange={setSharedResume} />
+      )}
+      {activeTab === 'interview' && (
+        <MockInterview sharedResumeText={sharedResume} onResumeChange={setSharedResume} mode="mock" />
+      )}
+      {activeTab === 'tutor' && (
+        <DirectVoiceAssistant sharedResumeText={sharedResume} />
+      )}
     </div>
   );
 }
