@@ -272,7 +272,16 @@ function ResumeAnalyzer({ sharedResumeText, onResumeChange }) {
                 </p>
               )}
             </div>
-            <ScoreRing value={result.atsScore} size={90} label="ATS Score" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+              <button
+                onClick={() => window.print()}
+                className="btn btn-outline btn-sm"
+                style={{ fontSize: '0.78rem' }}
+              >
+                Download PDF Report
+              </button>
+              <ScoreRing value={result.atsScore} size={90} label="ATS Score" />
+            </div>
           </div>
 
           {/* Score interpretation */}
@@ -379,6 +388,7 @@ function MockInterview({ sharedResumeText, onResumeChange, mode = 'mock' }) {
   const [statusMsg,       setStatusMsg]        = useState('');    // e.g. "Listening...", "AI is thinking..."
 
   const recognitionRef   = useRef(null);
+  const accumulatedTextRef = useRef('');
   const answerStartRef   = useRef(Date.now());
   const chatEndRef       = useRef(null);
   const autoListenTimer  = useRef(null);
@@ -404,46 +414,68 @@ function MockInterview({ sharedResumeText, onResumeChange, mode = 'mock' }) {
     rec.interimResults  = true;   // show live transcript
 
     rec.onresult = e => {
-      let interim = '';
-      let final   = '';
-      for (const result of Array.from(e.results)) {
-        if (result.isFinal) final   += result[0]?.transcript || '';
-        else                interim += result[0]?.transcript || '';
-      }
-      if (interim) setInterimText(interim);
-      if (final)   {
-        setAnswerDraft(prev => (prev ? `${prev} ${final}` : final).trim());
-        setInterimText('');
+      let currentFinal   = '';
+      let currentInterim = '';
+      for (let i = 0; i < e.results.length; i++) {
+        const text = e.results[i][0]?.transcript || '';
+        if (e.results[i].isFinal) {
+          currentFinal += text + ' ';
+        } else {
+          currentInterim += text;
+        }
       }
 
+      // Preserve accumulated text across browser SpeechRecognition auto-timeouts (e.g. Chrome's 10-15s limit)
+      const fullTranscript = ((accumulatedTextRef.current ? accumulatedTextRef.current + ' ' : '') + currentFinal).trim();
+      setAnswerDraft(fullTranscript);
+      setInterimText(currentInterim.trim());
+
       // Hands-Free VAD Silence Detection:
-      // Reset silence timer on every detected speech snippet.
-      // 5.5 seconds pause allows candidate to think mid-sentence without being cut off!
+      // Adaptive delay: 6s for short answers (< 5 words), 14s for explanations/paragraphs (>= 5 words)
+      // allows candidate to speak long 4+ line paragraphs without being cut off mid-thought!
       clearTimeout(silenceTimerRef.current);
       if (voiceMode) {
+        const wordCount = (fullTranscript + ' ' + currentInterim).trim().split(/\s+/).filter(Boolean).length;
+        const adaptiveDelay = wordCount < 5 ? 6000 : 14000;
         silenceTimerRef.current = setTimeout(() => {
           if (isListeningRef.current) {
             submitRef.current?.();
           }
-        }, 5500);
+        }, adaptiveDelay);
       }
     };
     rec.onend  = () => {
       clearTimeout(silenceTimerRef.current);
-      setIsListening(false);
       setInterimText('');
+
+      // Store current recognized text into accumulatedTextRef before browser auto-restart
+      setAnswerDraft(prev => {
+        if (prev.trim()) accumulatedTextRef.current = prev.trim();
+        return prev;
+      });
+
+      // Seamlessly keep microphone active if user is still answering
+      if (isListeningRef.current && !isSubmitting && !isFinishing) {
+        try { rec.start(); } catch {}
+      } else {
+        setIsListening(false);
+      }
     };
-    rec.onerror = () => {
+    rec.onerror = (err) => {
       clearTimeout(silenceTimerRef.current);
-      setIsListening(false);
       setInterimText('');
+      if (isListeningRef.current && !isSubmitting && !isFinishing && err?.error !== 'not-allowed') {
+        setTimeout(() => { try { rec.start(); } catch {} }, 300);
+      } else {
+        setIsListening(false);
+      }
     };
     recognitionRef.current = rec;
     return () => {
       clearTimeout(silenceTimerRef.current);
       try { rec.stop(); } catch {}
     };
-  }, [voiceMode]);
+  }, [voiceMode, isSubmitting, isFinishing]);
 
   /* ── Auto-scroll chat ── */
   useEffect(() => {
@@ -482,12 +514,8 @@ function MockInterview({ sharedResumeText, onResumeChange, mode = 'mock' }) {
       setIsSpeaking(false);
       setStatusMsg('');
       if (autoListen && voiceMode && canListen) {
-        // Small pause then auto-start listening
-        setStatusMsg('Get ready to answer…');
-        autoListenTimer.current = setTimeout(() => {
-          setStatusMsg('');
-          startListening();
-        }, 900);
+        // Immediate microphone activation so candidate's initial words are captured without delay
+        startListening();
       }
     };
     u.onerror = () => { setIsSpeaking(false); setStatusMsg(''); };
@@ -505,6 +533,7 @@ function MockInterview({ sharedResumeText, onResumeChange, mode = 'mock' }) {
   const startListening = () => {
     const rec = recognitionRef.current;
     if (!rec || isListeningRef.current) return;
+    accumulatedTextRef.current = '';
     setAnswerDraft('');
     setInterimText('');
     setError('');
@@ -1120,6 +1149,8 @@ function DirectVoiceAssistant({ sharedResumeText }) {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [turns, interimText]);
 
+  const accumulatedTextRef = useRef('');
+
   /* Speech recognition setup */
   useEffect(() => {
     if (!canListen) return;
@@ -1138,28 +1169,30 @@ function DirectVoiceAssistant({ sharedResumeText }) {
         setIsSpeaking(false);
       }
 
-      let finalAcc   = '';
-      let interimAcc = '';
+      let currentFinal   = '';
+      let currentInterim = '';
 
       for (let i = 0; i < e.results.length; i++) {
         const text = e.results[i][0]?.transcript || '';
         if (e.results[i].isFinal) {
-          finalAcc += text + ' ';
+          currentFinal += text + ' ';
         } else {
-          interimAcc += text;
+          currentInterim += text;
         }
       }
 
-      setAnswerDraft(finalAcc.trim());
-      setInterimText(interimAcc.trim());
+      // Preserve previously recognized speech chunks across browser session resets so long answers are never lost
+      const fullTranscript = ((accumulatedTextRef.current ? accumulatedTextRef.current + ' ' : '') + currentFinal).trim();
+      setAnswerDraft(fullTranscript);
+      setInterimText(currentInterim.trim());
 
-      // Adaptive VAD Silence Timer:
-      // Short responses (<= 4 words like "DBMS"): 2.0s delay for quick replies
-      // Long explanations (> 4 words): 5.5s generous delay to allow thinking mid-sentence
+      // Generous VAD Silence Timer to allow thinking pauses mid-answer:
+      // Short responses (<= 3 words): 6.0s pause allowed
+      // Explanations (> 3 words): 14.0s generous pause window so candidates talking in long paragraphs (4+ lines) are never cut off mid-thought
       clearTimeout(silenceTimerRef.current);
       if (autoSendRef.current) {
-        const totalWords = (finalAcc + ' ' + interimAcc).trim().split(/\s+/).filter(Boolean).length;
-        const adaptiveDelay = totalWords <= 4 ? 2000 : 5500;
+        const totalWords = (fullTranscript + ' ' + currentInterim).trim().split(/\s+/).filter(Boolean).length;
+        const adaptiveDelay = totalWords <= 3 ? 6000 : 14000;
 
         silenceTimerRef.current = setTimeout(() => {
           if (isListeningRef.current) {
@@ -1172,6 +1205,13 @@ function DirectVoiceAssistant({ sharedResumeText }) {
     rec.onend  = () => {
       clearTimeout(silenceTimerRef.current);
       setInterimText('');
+
+      // If session is active and not speaking/thinking, store current final transcript to prevent speech loss on restart
+      setAnswerDraft(prev => {
+        if (prev.trim()) accumulatedTextRef.current = prev.trim();
+        return prev;
+      });
+
       // Continuous Voice Loop: Silently keep mic alive without flicking isListening state
       if (isActiveRef.current && !isSpeakingRef.current && !isThinkingRef.current) {
         try { rec.start(); } catch {}
@@ -1208,8 +1248,12 @@ function DirectVoiceAssistant({ sharedResumeText }) {
     u.onend   = () => {
       setIsSpeaking(false);
       setStatusMsg('');
-      if (autoListenAfter && canListen) {
-        setTimeout(() => startListening(), 700);
+      // Guard against a race with stopAssistantSession: if the session was
+      // ended (e.g. via speechSynthesis.cancel()) just before this utterance's
+      // onend fires, don't re-arm the microphone.
+      if (autoListenAfter && canListen && isActiveRef.current) {
+        // Immediate microphone activation (0ms) so candidate's initial words are never clipped
+        startListening();
       }
     };
     u.onerror = () => { setIsSpeaking(false); setStatusMsg(''); };
@@ -1219,6 +1263,7 @@ function DirectVoiceAssistant({ sharedResumeText }) {
   const startListening = () => {
     const rec = recognitionRef.current;
     if (!rec || isListeningRef.current) return;
+    accumulatedTextRef.current = '';
     setAnswerDraft('');
     setInterimText('');
     setIsListening(true);
@@ -1237,7 +1282,7 @@ function DirectVoiceAssistant({ sharedResumeText }) {
   const startAssistantSession = () => {
     setIsActive(true);
     setError('');
-    const greeting = "Hello! I am your AI Placement Tutor. What CS topic would you like to revise today — Operating Systems, DBMS SQL, Data Structures, or OOPS? Or ask me any question!";
+    const greeting = "Hello! I am your AI Placement Tutor. What CS topic would you like to revise today — Operating Systems, DBMS SQL, Data Structures, or OOP? Or ask me any question!";
     setTurns([{ role: 'interviewer', text: greeting }]);
     setTimeout(() => speakText(greeting, true), 400);
   };
@@ -1310,12 +1355,16 @@ function DirectVoiceAssistant({ sharedResumeText }) {
     isListeningRef.current = false;
 
     clearTimeout(silenceTimerRef.current);
-    clearTimeout(autoListenTimer.current);
 
     if (canSpeak && typeof window !== 'undefined') {
       try { window.speechSynthesis.cancel(); } catch {}
     }
     
+    // Note: we deliberately do NOT null out rec.onend/onerror/onresult here —
+    // those are attached once on mount and reused for every session. The
+    // isActiveRef flag (already set to false above) is what stops the
+    // onend handler from auto-restarting the mic, so the recognizer stays
+    // wired up and ready for the next "Start AI Voice Assistant" click.
     const rec = recognitionRef.current;
     if (rec) {
       try { rec.abort(); } catch {}
@@ -1326,9 +1375,11 @@ function DirectVoiceAssistant({ sharedResumeText }) {
     setIsSpeaking(false);
     setIsListening(false);
     setIsThinking(false);
+    setTurns([]);
     setAnswerDraft('');
     setInterimText('');
     setStatusMsg('');
+    accumulatedTextRef.current = '';
   };
 
   return (
@@ -1346,7 +1397,7 @@ function DirectVoiceAssistant({ sharedResumeText }) {
                 AI Voice Tutor & Practice Assistant
               </p>
               <p className="t-xs" style={{ color: 'rgba(255,255,255,0.7)', marginTop: '0.35rem', maxWidth: 440, lineHeight: 1.5 }}>
-                Direct 1-on-1 interactive voice tutoring. Tap start to practice any CS concept (OS, DBMS, DSA, OOPS), ask for hints, or get step-by-step guidance!
+                Direct 1-on-1 interactive voice tutoring. Tap start to practice any CS concept (OS, DBMS, DSA, OOP), ask for hints, or get step-by-step guidance!
               </p>
             </div>
           </div>
@@ -1391,7 +1442,7 @@ function DirectVoiceAssistant({ sharedResumeText }) {
                 <p className="t-xs" style={{ color: 'rgba(255,255,255,0.65)', marginTop: '0.2rem' }}>
                   {isSpeaking ? 'Please wait while AI responds' :
                    isThinking ? 'Processing your response' :
-                   autoSend ? 'Speak naturally — 5.5s pause sends answer' : 'Manual Mode — Tap "Send Answer Now" when finished'}
+                   autoSend ? 'Speak naturally — a short pause sends your answer' : 'Manual Mode — Tap "Send Answer Now" when finished'}
                 </p>
 
                 {/* Voice Persona & Auto-Send Toggles */}
@@ -1433,7 +1484,7 @@ function DirectVoiceAssistant({ sharedResumeText }) {
                           color: '#fff', fontSize: '0.72rem', cursor: 'pointer', fontWeight: 600
                         }}
                       >
-                        Auto (5.5s)
+                        Auto
                       </button>
                       <button
                         onClick={() => setAutoSend(false)}
@@ -1453,7 +1504,7 @@ function DirectVoiceAssistant({ sharedResumeText }) {
               <div style={{ marginTop: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', width: '100%', zIndex: 2 }}>
                 <span className="t-xs" style={{ color: 'rgba(255,255,255,0.65)', textAlign: 'center', fontWeight: 600 }}>Quick Topic Switch:</span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', justifyContent: 'center' }}>
-                  {['Data Structures', 'DBMS SQL', 'Operating Systems', 'OOPS'].map(topic => (
+                  {['Data Structures', 'DBMS SQL', 'Operating Systems', 'OOP'].map(topic => (
                     <button
                       key={topic}
                       onClick={() => handleTopicSelect(topic)}

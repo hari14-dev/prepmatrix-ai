@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
 /* ═══════════════════════════════════════════════════════════
-   SP3 — Design System v2  |  Professional, High-Contrast
+   PrepMatrix AI — Design System v2  |  Professional, High-Contrast
    ═══════════════════════════════════════════════════════════ */
 
 /* ── 1. Tokens ───────────────────────────────────────────── */
@@ -263,11 +263,25 @@ code,pre { font-family:var(--font-mono); }
 .input:focus { outline:none; border-color:var(--indigo); box-shadow:0 0 0 3px rgba(58,92,216,0.16); }
 
 .select {
-  padding:0.55rem 0.9rem; border-radius:var(--r-md);
-  border:1px solid var(--b-2); background:var(--bg-input); color:var(--tx-1);
-  font-size:0.875rem; font-family:var(--font-body); cursor:pointer;
+  padding: 0.65rem 2.6rem 0.65rem 0.9rem;
+  border-radius: var(--r-md);
+  border: 1px solid var(--b-2);
+  background-color: var(--bg-input);
+  color: var(--tx-1);
+  font-size: 0.875rem;
+  font-family: var(--font-body);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1.25rem center;
+  background-size: 1rem;
+  transition: border-color 0.18s, box-shadow 0.18s;
 }
 .select:focus { outline:none; border-color:var(--indigo); box-shadow:0 0 0 3px rgba(58,92,216,0.16); }
+
 
 .textarea {
   padding:0.7rem 0.9rem; border-radius:var(--r-md);
@@ -1029,10 +1043,10 @@ input[type="range"] { accent-color:var(--indigo); }
   .focus-mode .dashboard-layout { display:block; }
 }
 /* ═══════════════════════════════════════════════════════════
-   SP3 v3 — Hub + Page Layout System
+   PrepMatrix AI — Hub + Page Layout System
    ═══════════════════════════════════════════════════════════ */
 
-@keyframes sp3-pulse {
+@keyframes prepmatrix-pulse {
   0%,100% { opacity:1; }
   50%      { opacity:0.45; }
 }
@@ -1208,12 +1222,12 @@ input[type="range"] { accent-color:var(--indigo); }
   flex: 1;
 }
 
-/* ── SP3 Table (DSA topic sheet) ── */
-.sp3-table {
+/* ── PrepMatrix Table (DSA topic sheet) ── */
+.prepmatrix-table {
   width: 100%;
   border-collapse: collapse;
 }
-.sp3-table th {
+.prepmatrix-table th {
   padding: 0.7rem 0.75rem;
   font-size: 0.68rem;
   font-weight: 700;
@@ -1223,14 +1237,14 @@ input[type="range"] { accent-color:var(--indigo); }
   border-bottom: 1px solid var(--b-2);
   text-align: left;
 }
-.sp3-table td {
+.prepmatrix-table td {
   padding: 0.75rem 0.75rem;
   vertical-align: middle;
   border-bottom: 1px solid var(--b-1);
 }
-.sp3-table tbody tr:last-child td { border-bottom: none; }
-.sp3-table tbody tr:hover td { background: rgba(58,92,216,0.04); }
-.sp3-table tbody tr.row-solved td { opacity: 0.7; }
+.prepmatrix-table tbody tr:last-child td { border-bottom: none; }
+.prepmatrix-table tbody tr:hover td { background: rgba(58,92,216,0.04); }
+.prepmatrix-table tbody tr.row-solved td { opacity: 0.7; }
 
 /* ── Table problem link ── */
 .table-problem-link {

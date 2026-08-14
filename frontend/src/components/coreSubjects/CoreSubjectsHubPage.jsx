@@ -11,12 +11,12 @@ const CATS = [
   { key:'OS',   label:'Operating Systems', sub:'Processes, Memory, Scheduling',     Icon:Cpu,      accent:'var(--cyan)',   dim:'var(--cyan-dim)'   },
   { key:'DBMS', label:'DBMS',              sub:'SQL, Normalization, Transactions',   Icon:Database, accent:'var(--amber)',  dim:'var(--amber-dim)'  },
   { key:'CN',   label:'Computer Networks', sub:'OSI, TCP/IP, Protocols',             Icon:Network,  accent:'var(--green)',  dim:'var(--green-dim)'  },
-  { key:'OOPS', label:'OOP Concepts',      sub:'Polymorphism, Inheritance, Patterns',Icon:Layers,   accent:'var(--violet)', dim:'var(--violet-dim)' },
+  { key:'OOP',  label:'OOP Concepts',      sub:'Polymorphism, Inheritance, Patterns',Icon:Layers,   accent:'var(--violet)', dim:'var(--violet-dim)' },
 ];
 
 export function CoreSubjectsHubPage() {
   const { token } = useAuth();
-  const [hub, setHub] = useState({ OS:[], DBMS:[], CN:[], OOPS:[] });
+  const [hub, setHub] = useState({ OS:[], DBMS:[], CN:[], OOP:[], OOPS:[] });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -60,7 +60,7 @@ export function CoreSubjectsHubPage() {
 
       <div className="subjects-grid">
         {CATS.map(cat => {
-              const topics = hub[cat.key]||[];
+              const topics = hub[cat.key] || (cat.key === 'OOP' ? hub.OOPS : []) || [];
               const avg = topics.length>0 ? Math.round(topics.reduce((s,t)=>s+(t.completionPercentage||0),0)/topics.length) : 0;
               return (
                 <article key={cat.key} className="subject-card">

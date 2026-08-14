@@ -1,6 +1,6 @@
 /**
  * AppRoutes.jsx
- * Central routing configuration for the SP3 app.
+ * Central routing configuration for the PrepMatrix AI app.
  *
  * Route guards:
  *  - PublicOnlyRoute: redirects to /dashboard if already logged in (login/signup)
@@ -23,6 +23,7 @@ import { AppShell } from '../components/layout/AppShell.jsx';
 
 // Dashboard
 import { DashboardHome } from '../components/dashboard/DashboardHome.jsx';
+import { UserProfilePage } from '../components/dashboard/UserProfilePage.jsx';
 
 // Aptitude module
 import { AptitudeHubPage }    from '../components/aptitude/AptitudeHubPage.jsx';
@@ -140,6 +141,15 @@ export function AppRoutes() {
         element={
           <ShellPage user={user} onLogout={logout}>
             <DashboardHome user={user} />
+          </ShellPage>
+        }
+      />
+
+      <Route
+        path="/dashboard/profile"
+        element={
+          <ShellPage user={user} onLogout={logout}>
+            <UserProfilePage />
           </ShellPage>
         }
       />

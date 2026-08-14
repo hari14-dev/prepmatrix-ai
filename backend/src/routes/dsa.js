@@ -71,6 +71,42 @@ dsaRouter.use(async (_req, _res, next) => {
   }
 });
 
+// GET /api/dsa/problem/:problemId/submissions — Return past submissions for user & problem
+dsaRouter.get('/problem/:problemId/submissions', requireAuth, async (req, res, next) => {
+  try {
+    const { problemId } = req.params;
+    const userId = req.auth.userId;
+
+    let targetId = problemId;
+    // If problemId is not a valid ObjectId (e.g. it's a slug like 'array-sum'), find the problem _id
+    if (!problemId.match(/^[0-9a-fA-F]{24}$/)) {
+      const foundProblem = await DSAProblemModel.findOne({ slug: problemId }, { _id: 1 }).lean();
+      if (foundProblem) {
+        targetId = foundProblem._id;
+      }
+    }
+
+    const submissions = await UserSubmissionModel.find({ userId, problemId: targetId })
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .lean();
+
+    return res.json({
+      success: true,
+      data: submissions.map(s => ({
+        id: s._id.toString(),
+        language: s.language,
+        code: s.code,
+        status: s.status === 'Accepted' ? 'Accepted' : s.status === 'Runtime' ? 'Runtime Error' : s.status === 'Wrong' ? 'Wrong Answer' : (s.status || 'Evaluated'),
+        runtime: s.runtime ?? 0,
+        createdAt: s.createdAt
+      }))
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 
 // ── GET /api/dsa/concept/:slug ─────────────────────────────────────
 // Returns the concept article for a DSA pattern.

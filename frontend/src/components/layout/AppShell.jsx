@@ -32,14 +32,18 @@ export function AppShell({ user, onLogout, children, hideSidebar=false, mainOver
       <header className={mainOverflow === 'hidden' ? 'dashboard-topbar focus-topbar' : 'dashboard-topbar'}>
         <div className="row">
           <Link to="/dashboard" style={{ textDecoration:'none' }}>
-            <span className="brand">SP3</span>
+            <span className="brand">PrepMatrix <span style={{ color: 'var(--indigo-light)' }}>AI</span></span>
           </Link>
         </div>
-        <div className="row">
-          <span style={{ fontSize:'0.875rem', color:'var(--tx-3)' }} className="user-name-display">
-            {user?.fullName}
-          </span>
-          <button className="btn btn-outline btn-sm" onClick={handleLogout}>Logout</button>
+        <div className="row" style={{ gap: '0.85rem', alignItems: 'center' }}>
+          <Link to="/dashboard/profile" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+            <div style={{ width: 28, height: 28, borderRadius: 99, background: 'var(--indigo-dim)', border: '1px solid var(--indigo-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.78rem', fontWeight: 700, color: 'var(--indigo-light)' }}>
+              {user?.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
+            </div>
+            <span style={{ fontSize:'0.875rem', color:'var(--tx-2)', fontWeight: 600 }} className="user-name-display">
+              {user?.fullName}
+            </span>
+          </Link>
         </div>
       </header>
 

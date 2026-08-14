@@ -6,7 +6,7 @@ import { apiRequest } from '../../lib/api.js';
 const FEATURES = [
   { Icon:Calculator, title:'Aptitude & Logic',    desc:'Topic-wise quant, logical, and verbal preparation with curated mock tests.' },
   { Icon:Code2,      title:'DSA Practice',        desc:'Pattern-based DSA curriculum with a built-in IDE. Run code in C++, Java, Python.' },
-  { Icon:BookOpen,   title:'Core Subjects Vault', desc:'OS, DBMS, CN, OOPS — interview MCQs, concept articles, and an AI assistant.' },
+  { Icon:BookOpen,   title:'Core Subjects Vault', desc:'OS, DBMS, CN, OOP — interview MCQs, concept articles, and an AI assistant.' },
   { Icon:FileText,   title:'AI Resume Auditor',   desc:'Paste your resume text, get an ATS score and skill gap analysis.' },
   { Icon:Mic,        title:'Mock Interview',       desc:'Voice-based AI interview simulator with real-time scoring.' },
   { Icon:Trophy,     title:'Practice Contests',    desc:'Timed, mixed-format contests across Aptitude, Core Subjects, and DSA, scored instantly.' },
@@ -36,7 +36,7 @@ export function LandingPage() {
     <main className="page">
       <div className="container">
         <nav className="topbar card soft-card">
-          <span className="brand">SP3</span>
+          <span className="brand">PrepMatrix <span style={{ color: 'var(--indigo-light)' }}>AI</span></span>
           <div className="row">
             <Link className="btn btn-outline" to="/login">Login</Link>
             <Link className="btn btn-primary btn-glow" to="/signup">Get Started</Link>
@@ -55,7 +55,7 @@ export function LandingPage() {
               </span>
             </h1>
             <p className="muted-text" style={{ fontSize:"1.05rem", maxWidth:480 }}>
-              SP3 combines AI-powered interview prep, DSA practice, aptitude training, and core subject revision — all trackable in one platform.
+              PrepMatrix AI combines AI-powered interview prep, DSA practice, aptitude training, and core subject revision — all trackable in one platform.
             </p>
             <div className="row wrap gap-md" style={{ marginTop:"2rem" }}>
               <Link className="btn btn-primary btn-glow" to="/signup" style={{ padding:"0.75rem 1.75rem", fontSize:"1rem" }}>

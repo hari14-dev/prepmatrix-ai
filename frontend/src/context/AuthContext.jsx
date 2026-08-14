@@ -4,7 +4,7 @@ import { apiRequest } from '../lib/api.js';
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(localStorage.getItem('sp3_token'));
+  const [token, setToken] = useState(() => localStorage.getItem('prepmatrix_token') || localStorage.getItem('sp3_token'));
   const [user, setUser] = useState(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
 
@@ -21,6 +21,7 @@ export function AuthProvider({ children }) {
         setUser(response.data.user);
       })
       .catch(() => {
+        localStorage.removeItem('prepmatrix_token');
         localStorage.removeItem('sp3_token');
         setToken(null);
         setUser(null);
@@ -29,15 +30,20 @@ export function AuthProvider({ children }) {
   }, [token]);
 
   const login = (payload) => {
-    localStorage.setItem('sp3_token', payload.token);
+    localStorage.setItem('prepmatrix_token', payload.token);
     setToken(payload.token);
     setUser(payload.user);
   };
 
   const logout = () => {
+    localStorage.removeItem('prepmatrix_token');
     localStorage.removeItem('sp3_token');
     setToken(null);
     setUser(null);
+  };
+
+  const updateUser = (updatedFields) => {
+    setUser(prev => prev ? { ...prev, ...updatedFields } : prev);
   };
 
   const value = useMemo(
@@ -47,7 +53,8 @@ export function AuthProvider({ children }) {
       isAuthenticated: Boolean(token && user),
       isCheckingSession,
       login,
-      logout
+      logout,
+      updateUser
     }),
     [token, user, isCheckingSession]
   );

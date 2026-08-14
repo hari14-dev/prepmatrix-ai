@@ -20,7 +20,7 @@ const start = async () => {
   const app = createApp();
 
   app.listen(env.PORT, () => {
-    console.log(`SP3 API listening on http://localhost:${env.PORT}`);
+    console.log(`PrepMatrix AI API listening on http://localhost:${env.PORT}`);
   });
 };
 

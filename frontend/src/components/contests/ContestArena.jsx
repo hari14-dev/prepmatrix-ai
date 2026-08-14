@@ -499,10 +499,3 @@ export function ContestArena({ contestId, onExit }) {
     </div>
   );
 }
-
-// expose for ContestArena internal use
-const MODULE_COLOR = {
-  Aptitude: 'var(--cyan)',
-  Core:     'var(--violet)',
-  DSA:      'var(--indigo-light)',
-};

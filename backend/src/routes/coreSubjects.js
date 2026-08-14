@@ -44,18 +44,29 @@ coreSubjectsRouter.get('/hub', async (req, res, next) => {
       }
     }
 
-    const grouped = { OS: [], DBMS: [], CN: [], OOPS: [] };
+    const grouped = { OS: [], DBMS: [], CN: [], OOP: [], OOPS: [] };
     for (const topic of topics) {
       const total = problemCountByTopic.get(topic._id.toString()) ?? 0;
       const solved = solvedCountByTopic.get(topic._id.toString()) ?? 0;
       const completionPercentage = total === 0 ? 0 : Math.round((solved / total) * 100);
 
-      grouped[topic.category].push({
+      const catKey = topic.category === 'OOPS' ? 'OOP' : topic.category;
+      if (!grouped[catKey]) grouped[catKey] = [];
+      grouped[catKey].push({
         title: topic.title,
         slug: topic.slug,
         icon: topic.icon,
         completionPercentage
       });
+      // Also populate OOPS alias for backward compatibility
+      if (topic.category === 'OOPS') {
+        grouped.OOPS.push({
+          title: topic.title,
+          slug: topic.slug,
+          icon: topic.icon,
+          completionPercentage
+        });
+      }
     }
 
     return res.json({ success: true, data: grouped });

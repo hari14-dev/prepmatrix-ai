@@ -78,7 +78,7 @@ function slugify(v) {
 }
 
 /* ── IDE Theme definition ── */
-const IDE_THEME_NAME = 'sp3-dark';
+const IDE_THEME_NAME = 'prepmatrix-dark';
 function defineTheme(monaco) {
   monaco.editor.defineTheme(IDE_THEME_NAME, {
     base: 'vs-dark',
@@ -135,7 +135,27 @@ export function CodingIDEPage() {
   const [aiInput,         setAiInput]         = useState('');
   const [isAiThinking,    setIsAiThinking]    = useState(false);
   const [assistantOpen,   setAssistantOpen]   = useState(true);
+  const [leftTab,         setLeftTab]         = useState('description'); // 'description' | 'submissions'
+  const [pastSubmissions, setPastSubmissions] = useState([]);
+  const [isLoadingSubs,   setIsLoadingSubs]   = useState(false);
+  const [viewingSub,      setViewingSub]      = useState(null);
+  const [copiedSub,       setCopiedSub]       = useState(false);
   const aiEndRef = useRef(null);
+
+  const targetProbId = problem?._id || problem?.id || slug;
+
+  const fetchSubmissions = () => {
+    if (!token || !targetProbId) return;
+    setIsLoadingSubs(true);
+    apiRequest(`/api/dsa/problem/${targetProbId}/submissions`, { token })
+      .then(res => setPastSubmissions(Array.isArray(res.data) ? res.data : []))
+      .catch(() => {})
+      .finally(() => setIsLoadingSubs(false));
+  };
+
+  useEffect(() => {
+    if (targetProbId) fetchSubmissions();
+  }, [targetProbId, token]);
 
   /* ── Register Monaco theme once ── */
   useEffect(() => {
@@ -208,12 +228,13 @@ export function CodingIDEPage() {
         body: { userCode: currentCode, language, problemId: problem.id }
       });
       setSubmitReport(res);
+      fetchSubmissions();
     } catch (e) {
       setError(e.message || 'Submission failed');
     } finally {
       setIsSubmitting(false);
     }
-  }, [problem, currentCode, language, token]);
+  }, [problem, currentCode, language, token, fetchSubmissions]);
 
   /* ── Ask AI ── */
   const aiAbortControllerRef = useRef(null);
@@ -368,31 +389,49 @@ export function CodingIDEPage() {
 
       {/* ── Three-pane layout ── */}
       <div className="dsa-ide-layout">
-        <PanelGroup className="dsa-resizable-group" direction="horizontal" autoSaveId="sp3-ide-v2">
+        <PanelGroup className="dsa-resizable-group" direction="horizontal" autoSaveId="prepmatrix-ide-v2">
 
-          {/* ── Pane 1: Problem Description ── */}
+          {/* ── Pane 1: Problem Description & Submissions ── */}
           <Panel defaultSize={28} minSize={20} maxSize={42} className="dsa-panel-shell">
             <div className="problem-desc-pane">
-              <div className="problem-desc-scroll">
+              
+              {/* Tab Header Bar */}
+              <div style={{ display: 'flex', gap: '0.4rem', borderBottom: '1px solid var(--b-1)', background: 'var(--bg-elevated)', padding: '0.4rem 0.75rem', flexShrink: 0 }}>
+                <button
+                  onClick={() => setLeftTab('description')}
+                  style={{
+                    background: leftTab === 'description' ? 'var(--indigo-dim)' : 'transparent',
+                    color: leftTab === 'description' ? 'var(--indigo-light)' : 'var(--tx-3)',
+                    border: leftTab === 'description' ? '1px solid rgba(107,135,232,0.3)' : '1px solid transparent',
+                    borderRadius: 'var(--r-md)', padding: '0.3rem 0.7rem', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer'
+                  }}
+                >
+                  Description
+                </button>
+                <button
+                  onClick={() => { setLeftTab('submissions'); fetchSubmissions(); }}
+                  style={{
+                    background: leftTab === 'submissions' ? 'var(--indigo-dim)' : 'transparent',
+                    color: leftTab === 'submissions' ? 'var(--indigo-light)' : 'var(--tx-3)',
+                    border: leftTab === 'submissions' ? '1px solid rgba(107,135,232,0.3)' : '1px solid transparent',
+                    borderRadius: 'var(--r-md)', padding: '0.3rem 0.7rem', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer'
+                  }}
+                >
+                  Submissions {pastSubmissions.length > 0 && `(${pastSubmissions.length})`}
+                </button>
+              </div>
 
-                {/* Meta */}
-                <div className="problem-meta-row">
-                  <span className={diffClass}>{problem.difficulty}</span>
-                  {problem.pattern && <span className="pill pill-primary" style={{ fontSize: '0.68rem' }}>{problem.pattern}</span>}
-                  {problem.tags?.map(t => (
-                    <span key={t} className="pill" style={{ fontSize: '0.65rem' }}>{t}</span>
-                  ))}
-                </div>
+              {leftTab === 'description' ? (
+                <div className="problem-desc-scroll">
+                  {/* Title */}
+                  <h2 className="problem-title" style={{ marginTop: '0.5rem' }}>{problem.title}</h2>
 
-                {/* Title */}
-                <h2 className="problem-title">{problem.title}</h2>
-
-                {/* Statement */}
-                <div className="problem-statement markdown-view">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {problem.description || ''}
-                  </ReactMarkdown>
-                </div>
+                  {/* Statement */}
+                  <div className="problem-statement markdown-view">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {(problem.description || '').replace(/^#\s+[^\n]+\n?/, '')}
+                    </ReactMarkdown>
+                  </div>
 
                 {/* Input / Output format */}
                 {(problem.inputFormat || problem.outputFormat) && (
@@ -471,8 +510,138 @@ export function CodingIDEPage() {
                   </details>
                 )}
               </div>
+              ) : (
+                <div className="problem-desc-scroll" style={{ padding: '0.85rem' }}>
+                  <h3 style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--tx-1)', marginBottom: '0.85rem' }}>
+                    Submission History
+                  </h3>
+                  {isLoadingSubs ? (
+                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--tx-4)', fontSize: '0.85rem' }}>
+                      <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2, marginRight: '0.4rem' }} /> Loading past submissions…
+                    </div>
+                  ) : pastSubmissions.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '2rem 1rem', background: 'var(--bg-elevated)', borderRadius: 'var(--r-md)', border: '1px solid var(--b-1)' }}>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--tx-3)', fontWeight: 600 }}>No submissions yet</p>
+                      <p className="t-xs" style={{ color: 'var(--tx-4)', marginTop: '0.2rem' }}>
+                        Submit your code solution to view your history here.
+                      </p>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                      {pastSubmissions.map((sub, idx) => {
+                        const isAccepted = sub.status === 'Accepted';
+                        return (
+                          <div
+                            key={sub.id || idx}
+                            style={{
+                              padding: '0.75rem', borderRadius: 'var(--r-md)',
+                              background: 'var(--bg-elevated)', border: `1px solid ${isAccepted ? 'rgba(16,185,129,0.25)' : 'rgba(244,63,94,0.25)'}`,
+                              display: 'flex', flexDirection: 'column', gap: '0.4rem'
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span
+                                style={{
+                                  fontSize: '0.78rem', fontWeight: 800,
+                                  color: isAccepted ? 'var(--green)' : 'var(--rose)'
+                                }}
+                              >
+                                {sub.status || 'Evaluated'}
+                              </span>
+                              <span style={{ fontSize: '0.68rem', color: 'var(--tx-4)' }}>
+                                {new Date(sub.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: 'var(--tx-3)' }}>
+                              <span>Lang: <strong style={{ color: 'var(--tx-1)' }}>{sub.language}</strong></span>
+                              {sub.runtime > 0 && <span>Runtime: <strong>{sub.runtime} ms</strong></span>}
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.35rem' }}>
+                              <button
+                                onClick={() => setViewingSub(sub)}
+                                className="btn btn-secondary btn-sm"
+                                style={{ flex: 1, fontSize: '0.73rem', padding: '0.25rem' }}
+                              >
+                                View Code
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (sub.language && setLanguage) setLanguage(sub.language);
+                                  if (sub.code && setCodeMap) setCodeMap(prev => ({ ...prev, [sub.language || language]: sub.code }));
+                                }}
+                                className="btn btn-outline btn-sm"
+                                style={{ flex: 1, fontSize: '0.73rem', padding: '0.25rem' }}
+                              >
+                                Load into IDE
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </Panel>
+
+          {/* Submission Code Inspector Modal */}
+          {viewingSub && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+              <div className="card soft-card" style={{ maxWidth: 640, width: '100%', maxHeight: '85vh', display: 'flex', flexDirection: 'column', padding: '1.5rem', borderRadius: 'var(--r-xl)', background: 'var(--bg-elevated)', border: '1px solid var(--b-2)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+                  <div>
+                    <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--tx-1)', margin: 0 }}>
+                      Past Submission — <span style={{ color: viewingSub.status === 'Accepted' ? 'var(--green)' : 'var(--rose)' }}>{viewingSub.status}</span>
+                    </h3>
+                    <p className="t-xs" style={{ color: 'var(--tx-4)', marginTop: '0.15rem' }}>
+                      {viewingSub.language?.toUpperCase()} • Submitted on {new Date(viewingSub.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => { setViewingSub(null); setCopiedSub(false); }}
+                    className="btn btn-ghost btn-sm"
+                    style={{ fontSize: '1.1rem', padding: '0.2rem 0.5rem' }}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div style={{ flex: 1, overflowY: 'auto', background: 'rgba(0,0,0,0.4)', borderRadius: 'var(--r-md)', border: '1px solid var(--b-1)', padding: '1rem', marginBottom: '1rem' }}>
+                  <pre style={{ margin: 0, fontFamily: 'monospace', fontSize: '0.83rem', color: 'var(--tx-1)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                    {viewingSub.code}
+                  </pre>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end', flexShrink: 0 }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(viewingSub.code || '');
+                      setCopiedSub(true);
+                      setTimeout(() => setCopiedSub(false), 2000);
+                    }}
+                  >
+                    {copiedSub ? '✓ Copied!' : 'Copy Code'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={() => {
+                      if (viewingSub.language && setLanguage) setLanguage(viewingSub.language);
+                      if (viewingSub.code && setCodeMap) setCodeMap(prev => ({ ...prev, [viewingSub.language || language]: viewingSub.code }));
+                      setViewingSub(null);
+                    }}
+                  >
+                    Load Code into IDE →
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <PanelResizeHandle className="panel-resize-handle" />
 

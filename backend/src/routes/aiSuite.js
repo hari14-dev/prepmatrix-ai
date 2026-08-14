@@ -96,7 +96,7 @@ async function generateResumeAudit({ resumeText, targetRole, jobDescription }) {
   }
 
   const systemInstruction =
-    'You are SP3 Resume Intelligence. Evaluate resumes for campus placements and entry-level hiring. Return strict JSON only.';
+    'You are PrepMatrix AI Resume Intelligence. Evaluate resumes for campus placements and entry-level hiring. Return strict JSON only.';
 
   const prompt = [
     'Target role:',

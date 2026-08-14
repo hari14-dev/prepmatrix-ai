@@ -16,7 +16,7 @@ export const createApp = () => {
   app.use(express.json());
 
   app.get('/', (_req, res) => {
-    res.json({ success: true, message: 'SP3 API is running' });
+    res.json({ success: true, message: 'PrepMatrix AI API is running' });
   });
 
   app.use('/api/health', healthRouter);

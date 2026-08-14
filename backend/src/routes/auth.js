@@ -56,6 +56,8 @@ export const authRouter = Router();
 
 // Temporary in-memory store for 6-digit registration verification codes
 const otpStore = new Map();
+// Temporary in-memory store for 6-digit password reset codes
+const resetOtpStore = new Map();
 
 // POST /api/auth/send-otp
 authRouter.post('/send-otp', async (req, res, next) => {
@@ -197,6 +199,90 @@ authRouter.post('/register', async (req, res, next) => {
 
 // Lazily created — only needed if Google login is actually configured.
 const googleClient = env.GOOGLE_CLIENT_ID ? new OAuth2Client(env.GOOGLE_CLIENT_ID) : null;
+
+// POST /api/auth/forgot-password
+authRouter.post('/forgot-password', async (req, res, next) => {
+  try {
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    if (!email) return res.status(400).json({ success: false, message: 'Email address is required' });
+
+    const user = await UserModel.findOne({ email });
+    if (!user) {
+      // Return success even if not found to prevent account enumeration
+      return res.json({ success: true, message: 'If an account exists, reset instructions have been sent.' });
+    }
+
+    if (user.authProvider === 'google') {
+      return res.status(400).json({ success: false, message: 'This email uses Google Sign-In. Please sign in with Google.' });
+    }
+
+    // Generate 6-digit OTP code for password reset email
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    resetOtpStore.set(email, {
+      otp,
+      createdAt: Date.now()
+    });
+
+    const mailResult = await sendOtpEmail(email, otp, user.fullName || 'User');
+
+    return res.json({
+      success: true,
+      message: 'Password reset OTP sent to your email.',
+      dev: mailResult?.dev || false,
+      otp: mailResult?.dev ? otp : undefined
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/auth/reset-password
+authRouter.post('/reset-password', async (req, res, next) => {
+  try {
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const otp = typeof req.body?.otp === 'string' ? req.body.otp.trim() : '';
+    const newPassword = typeof req.body?.newPassword === 'string' ? req.body.newPassword : '';
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Email, OTP, and new password are required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'New password must be at least 6 characters long' });
+    }
+
+    const stored = resetOtpStore.get(email);
+    if (!stored) {
+      return res.status(400).json({ success: false, message: 'Reset code expired or not requested. Please request a new code.' });
+    }
+
+    // Check expiry (10 mins)
+    if (Date.now() - stored.createdAt > 10 * 60 * 1000) {
+      resetOtpStore.delete(email);
+      return res.status(400).json({ success: false, message: 'Reset code has expired. Please request a new code.' });
+    }
+
+    if (stored.otp !== otp) {
+      return res.status(400).json({ success: false, message: 'Invalid verification code. Please check your email and try again.' });
+    }
+
+    const user = await UserModel.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User account not found' });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    user.passwordHash = passwordHash;
+    await user.save();
+
+    resetOtpStore.delete(email);
+
+    return res.json({ success: true, message: 'Password reset successfully! You can now sign in with your new password.' });
+  } catch (err) {
+    next(err);
+  }
+});
+
 
 // POST /api/auth/google
 // Body: { credential } — the ID token JWT returned by Google Identity
@@ -341,7 +427,10 @@ authRouter.get('/me', requireAuth, async (req, res, next) => {
           email: user.email,
           avatarUrl: user.avatarUrl,
           readinessScore: user.readinessScore,
-          streakDays: user.streakDays
+          streakDays: user.streakDays,
+          targetRole: user.targetRole || '',
+          graduationYear: user.graduationYear || '',
+          authProvider: user.authProvider || 'local'
         }
       }
     });
@@ -350,9 +439,69 @@ authRouter.get('/me', requireAuth, async (req, res, next) => {
   }
 });
 
-// GET /api/auth/dashboard-stats — real stats for dashboard home, computed
-// live across every module (previously this only ever looked at DSA, and
-// readinessScore/streakDays were dead fields nothing ever updated).
+// PUT /api/auth/profile — Update user target role, full name, graduation year
+authRouter.put('/profile', requireAuth, async (req, res, next) => {
+  try {
+    const { fullName, targetRole, graduationYear } = req.body ?? {};
+    const userId = req.auth.userId;
+
+    const updates = {};
+    if (typeof fullName === 'string') updates.fullName = fullName.trim();
+    if (typeof targetRole === 'string') updates.targetRole = targetRole.trim();
+    if (typeof graduationYear === 'string') updates.graduationYear = graduationYear.trim();
+
+    const updatedUser = await UserModel.findByIdAndUpdate(userId, { $set: updates }, { new: true }).lean();
+
+    return res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: {
+        user: {
+          id: updatedUser._id.toString(),
+          fullName: updatedUser.fullName,
+          email: updatedUser.email,
+          avatarUrl: updatedUser.avatarUrl,
+          readinessScore: updatedUser.readinessScore,
+          streakDays: updatedUser.streakDays,
+          targetRole: updatedUser.targetRole || '',
+          graduationYear: updatedUser.graduationYear || '',
+          authProvider: updatedUser.authProvider
+        }
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/auth/change-password — Update password for local accounts
+authRouter.put('/change-password', requireAuth, async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body ?? {};
+    const userId = req.auth.userId;
+
+    const user = await UserModel.findById(userId);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    if (user.authProvider === 'google') {
+      return res.status(400).json({ success: false, message: 'Google accounts cannot change password here' });
+    }
+
+    const { bcryptCompare, bcryptHash } = await import('../lib/auth.js');
+    const matches = await bcryptCompare(currentPassword || '', user.passwordHash);
+    if (!matches) {
+      return res.status(400).json({ success: false, message: 'Current password is incorrect' });
+    }
+
+    user.passwordHash = await bcryptHash(newPassword);
+    await user.save();
+
+    return res.json({ success: true, message: 'Password updated successfully' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/auth/dashboard-stats — real stats for dashboard home
 authRouter.get('/dashboard-stats', requireAuth, async (req, res, next) => {
   try {
     const userId = req.auth.userId;
@@ -364,6 +513,8 @@ authRouter.get('/dashboard-stats', requireAuth, async (req, res, next) => {
     const { ContestModel } = await import('../models/Contest.js');
     const { ContestAttemptModel } = await import('../models/ContestAttempt.js');
 
+    const { AISessionModel } = await import('../models/AISession.js');
+
     const APTITUDE_CATEGORIES = ['Quant', 'Logical', 'Verbal'];
     const CORE_CATEGORIES = ['OS', 'DBMS', 'CN', 'OOPS'];
 
@@ -374,6 +525,7 @@ authRouter.get('/dashboard-stats', requireAuth, async (req, res, next) => {
       allSubmissions,
       contestTotal,
       contestAttempts,
+      aiSessions,
     ] = await Promise.all([
       TopicModel.find({}, { _id: 1, category: 1 }).lean(),
       UserSubmissionModel.distinct('problemId', { userId, status: 'Accepted' }),
@@ -384,6 +536,7 @@ authRouter.get('/dashboard-stats', requireAuth, async (req, res, next) => {
         { userId, status: { $in: ['submitted', 'timed-out'] } },
         { score: 1, totalMarks: 1, startedAt: 1, submittedAt: 1 }
       ).lean(),
+      AISessionModel.find({ userId }, { createdAt: 1, updatedAt: 1 }).lean(),
     ]);
 
     const aptitudeTopicIds = allTopics.filter(t => APTITUDE_CATEGORIES.includes(t.category)).map(t => t._id);
@@ -437,6 +590,7 @@ authRouter.get('/dashboard-stats', requireAuth, async (req, res, next) => {
     for (const row of progressRows) bump(row.updatedAt);
     for (const sub of allSubmissions) bump(sub.createdAt);
     for (const attempt of contestAttempts) { bump(attempt.startedAt); bump(attempt.submittedAt); }
+    for (const session of aiSessions) { bump(session.createdAt); bump(session.updatedAt); }
 
     const DAYS = 182; // 26 weeks, matches the frontend grid
     const today = new Date();

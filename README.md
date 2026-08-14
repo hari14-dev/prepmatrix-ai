@@ -1,4 +1,4 @@
-# SP3 — Smart Placement Preparation Platform
+# PrepMatrix AI — Smart Placement Preparation Platform
 
 An all-in-one placement preparation platform for engineering students — aptitude practice, DSA problem-solving, core CS subject revision, AI-powered resume auditing, voice-based mock interviews, and weekly contests, all with real progress tracking.
 
@@ -27,7 +27,7 @@ An all-in-one placement preparation platform for engineering students — aptitu
 ## Project Structure
 
 ```
-sp3/
+prepmatrix-ai/
 ├── backend/
 │   ├── src/
 │   │   ├── routes/       # API routes (auth, aptitude, dsa, coreSubjects, aiSuite, contests, public)
@@ -57,7 +57,7 @@ sp3/
 
 ```bash
 git clone <repo-url>
-cd sp3
+cd prepmatrix-ai
 npm install --workspaces
 ```
 

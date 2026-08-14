@@ -14,7 +14,9 @@ const userSchema = new Schema(
     googleId: { type: String, unique: true, sparse: true }, // sparse: only enforced unique among docs that have it
     avatarUrl: { type: String },
     readinessScore: { type: Number, default: 0 },
-    streakDays: { type: Number, default: 0 }
+    streakDays: { type: Number, default: 0 },
+    targetRole: { type: String, trim: true, default: '' },
+    graduationYear: { type: String, trim: true, default: '' }
   },
   { timestamps: true }
 );

@@ -248,7 +248,7 @@ export function TopicSheetPage() {
 
       {/* ── Problem Table ── */}
       <article className="card soft-card" style={{ padding:0, overflow:'hidden', borderRadius: 'var(--r-lg)', border: '1px solid var(--b-2)' }}>
-        <table className="sp3-table">
+        <table className="prepmatrix-table">
           <colgroup>
             <col style={{ width: 54 }} />
             <col />
