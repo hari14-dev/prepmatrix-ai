@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User, UserCheck, Award, Flame, LogOut, CheckCircle2, Circle, Sparkles, FileText, Mic, ShieldCheck, ArrowRight } from 'lucide-react';
+import { User, UserCheck, Award, Flame, LogOut, Sparkles, FileText, Mic, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { apiRequest } from '../../lib/api.js';
@@ -57,15 +57,6 @@ export function UserProfilePage() {
   const aptitudeSolved = stats?.modules?.aptitude?.solved ?? 0;
   const coreSolved = stats?.modules?.core?.solved ?? 0;
   const isPlacementReady = readinessScore >= 75;
-
-  const milestones = [
-    { title: 'Create Candidate Profile', completed: Boolean(user?.fullName), label: 'Setup display name' },
-    { title: 'Practice Aptitude & Logic', completed: aptitudeSolved > 0, label: `${aptitudeSolved} Topics Practiced` },
-    { title: 'Solve DSA Problems', completed: dsaSolved > 0, label: `${dsaSolved} Problems Solved` },
-    { title: 'Revise Core CS Subjects', completed: coreSolved > 0, label: `${coreSolved} Subjects Solved` },
-    { title: 'Run AI Resume Audit', completed: false, label: 'Get ATS Score & Skill Gaps', link: '/dashboard/ai' },
-    { title: 'Voice Mock Interview', completed: false, label: 'Real-time Voice AI Evaluation', link: '/dashboard/ai' },
-  ];
 
   return (
     <div style={{ display: 'grid', gap: '1.5rem', maxWidth: 960, margin: '0 auto', paddingBottom: '2rem' }}>
@@ -190,7 +181,7 @@ export function UserProfilePage() {
 
         </div>
 
-        {/* Right Column: Readiness Stats, Milestones & Account Session */}
+        {/* Right Column: Readiness Stats & Account Session */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           
           {/* Performance Summary Card */}
@@ -227,45 +218,6 @@ export function UserProfilePage() {
                   {coreSolved}
                 </p>
               </div>
-            </div>
-          </div>
-
-          {/* Placement Milestone Checklist */}
-          <div className="card soft-card" style={{ padding: '1.5rem' }}>
-            <h2 className="section-title" style={{ fontSize: '1.1rem', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <ShieldCheck size={18} style={{ color: 'var(--green)' }} /> Readiness Milestones
-            </h2>
-            <p className="muted-text small" style={{ marginBottom: '0.85rem' }}>
-              Track your journey toward 75%+ placement readiness.
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-              {milestones.map((m, idx) => (
-                <div key={idx} style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '0.55rem 0.75rem', background: 'var(--bg-input)', borderRadius: 'var(--r-md)', border: '1px solid var(--b-1)'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
-                    {m.completed ? (
-                      <CheckCircle2 size={17} style={{ color: 'var(--green)', flexShrink: 0 }} />
-                    ) : (
-                      <Circle size={17} style={{ color: 'var(--tx-4)', flexShrink: 0 }} />
-                    )}
-                    <div>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 600, color: m.completed ? 'var(--tx-1)' : 'var(--tx-3)', display: 'block' }}>
-                        {m.title}
-                      </span>
-                      <span className="t-xs" style={{ color: 'var(--tx-4)', fontSize: '0.75rem' }}>{m.label}</span>
-                    </div>
-                  </div>
-
-                  {m.link && (
-                    <Link to={m.link} className="btn-link" style={{ fontSize: '0.75rem', fontWeight: 600 }}>
-                      Try →
-                    </Link>
-                  )}
-                </div>
-              ))}
             </div>
           </div>
 
