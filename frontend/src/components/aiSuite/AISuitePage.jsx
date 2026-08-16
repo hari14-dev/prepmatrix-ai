@@ -1616,8 +1616,22 @@ function DirectVoiceAssistant({ sharedResumeText }) {
    MAIN PAGE — Tab switcher between the three sections
    ══════════════════════════════════════════════════════ */
 export function AISuitePage() {
-  const [activeTab,      setActiveTab]      = useState('resume'); // 'resume' | 'interview' | 'tutor'
-  const [sharedResume,   setSharedResume]   = useState('');
+  const [activeTab,    setActiveTab]    = useState('resume'); // 'resume' | 'interview' | 'tutor'
+  const [sharedResume, setSharedResume] = useState('');
+  const [isOffline,    setIsOffline]    = useState(typeof navigator !== 'undefined' && !navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   return (
     <div className="animate-in">
@@ -1633,6 +1647,20 @@ export function AISuitePage() {
           a strict company mock interviewer, or talk directly with an AI voice tutor.
         </p>
       </div>
+
+      {isOffline && (
+        <div style={{
+          padding: '1rem 1.25rem',
+          background: 'rgba(244,63,94,0.12)',
+          border: '1px solid rgba(244,63,94,0.3)',
+          color: '#fca5a5',
+          borderRadius: 'var(--r-md)',
+          fontSize: '0.88rem',
+          marginBottom: '1.5rem'
+        }}>
+          You appear to be offline. Please check your internet connection and try again.
+        </div>
+      )}
 
       {/* ── Tab switcher ── */}
       <div style={{
