@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { User, UserCheck, Award, Flame, LogOut } from 'lucide-react';
+import { User, UserCheck, Award, Flame, LogOut, CheckCircle2, Circle, Sparkles, FileText, Mic, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { apiRequest } from '../../lib/api.js';
 
@@ -52,7 +53,19 @@ export function UserProfilePage() {
 
   const readinessScore = stats?.readinessScore ?? user?.readinessScore ?? 0;
   const streakDays = stats?.streakDays ?? user?.streakDays ?? 0;
+  const dsaSolved = stats?.dsaSolved ?? 0;
+  const aptitudeSolved = stats?.modules?.aptitude?.solved ?? 0;
+  const coreSolved = stats?.modules?.core?.solved ?? 0;
   const isPlacementReady = readinessScore >= 75;
+
+  const milestones = [
+    { title: 'Create Candidate Profile', completed: Boolean(user?.fullName), label: 'Setup display name' },
+    { title: 'Practice Aptitude & Logic', completed: aptitudeSolved > 0, label: `${aptitudeSolved} Topics Practiced` },
+    { title: 'Solve DSA Problems', completed: dsaSolved > 0, label: `${dsaSolved} Problems Solved` },
+    { title: 'Revise Core CS Subjects', completed: coreSolved > 0, label: `${coreSolved} Subjects Solved` },
+    { title: 'Run AI Resume Audit', completed: false, label: 'Get ATS Score & Skill Gaps', link: '/dashboard/ai' },
+    { title: 'Voice Mock Interview', completed: false, label: 'Real-time Voice AI Evaluation', link: '/dashboard/ai' },
+  ];
 
   return (
     <div style={{ display: 'grid', gap: '1.5rem', maxWidth: 960, margin: '0 auto', paddingBottom: '2rem' }}>
@@ -98,40 +111,86 @@ export function UserProfilePage() {
         </div>
       </div>
 
-      {/* ── 2-Column Split: Preferences & Performance ── */}
-      <div className="profile-grid-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
+      {/* ── 2-Column Split Layout ── */}
+      <div className="profile-grid-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem' }}>
         
-        {/* Left Column: Profile Information Form */}
-        <form onSubmit={handleProfileSubmit} className="card soft-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div>
-            <h2 className="section-title" style={{ fontSize: '1.1rem', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <UserCheck size={18} style={{ color: 'var(--indigo-light)' }} /> Profile Information
+        {/* Left Column: Profile Form & AI Launchpad */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          
+          {/* Profile Information Form */}
+          <form onSubmit={handleProfileSubmit} className="card soft-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div>
+              <h2 className="section-title" style={{ fontSize: '1.1rem', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <UserCheck size={18} style={{ color: 'var(--indigo-light)' }} /> Profile Information
+              </h2>
+              <p className="muted-text small">Update your candidate display name for your portal profile.</p>
+            </div>
+
+            <div>
+              <label className="label">Full Name</label>
+              <input
+                type="text" className="input"
+                value={fullName} onChange={(e) => setFullName(e.target.value)}
+                placeholder="Enter your full name" required
+              />
+            </div>
+
+            {profileMsg && (
+              <p className="t-xs" style={{ color: profileMsg.includes('successfully') ? 'var(--green)' : 'var(--amber)' }}>
+                {profileMsg}
+              </p>
+            )}
+
+            <button type="submit" className="btn btn-primary btn-glow" disabled={profileSaving} style={{ marginTop: '0.25rem' }}>
+              {profileSaving ? 'Saving Profile…' : 'Save Profile'}
+            </button>
+          </form>
+
+          {/* Quick AI Practice Launchpad */}
+          <div className="card soft-card" style={{ padding: '1.5rem' }}>
+            <h2 className="section-title" style={{ fontSize: '1.1rem', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Sparkles size={18} style={{ color: 'var(--indigo-light)' }} /> AI Practice Launchpad
             </h2>
-            <p className="muted-text small">Update your candidate display name for your portal profile.</p>
-          </div>
-
-          <div>
-            <label className="label">Full Name</label>
-            <input
-              type="text" className="input"
-              value={fullName} onChange={(e) => setFullName(e.target.value)}
-              placeholder="Enter your full name" required
-            />
-          </div>
-
-          {profileMsg && (
-            <p className="t-xs" style={{ color: profileMsg.includes('successfully') ? 'var(--green)' : 'var(--amber)' }}>
-              {profileMsg}
+            <p className="muted-text small" style={{ marginBottom: '1rem' }}>
+              Elevate your placement readiness with AI-powered resume and voice evaluation.
             </p>
-          )}
 
-          <button type="submit" className="btn btn-primary btn-glow" disabled={profileSaving} style={{ marginTop: '0.5rem' }}>
-            {profileSaving ? 'Saving Profile…' : 'Save Profile'}
-          </button>
-        </form>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+              <Link to="/dashboard/ai" style={{ textDecoration: 'none' }}>
+                <div style={{
+                  background: 'var(--bg-input)', border: '1px solid var(--b-1)', borderRadius: 'var(--r-md)',
+                  padding: '1rem 0.85rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', transition: 'transform 0.15s, border-color 0.15s'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: 'var(--indigo-light)', fontWeight: 700, fontSize: '0.88rem' }}>
+                    <FileText size={16} /> Resume Audit
+                  </div>
+                  <span className="muted-text small" style={{ fontSize: '0.78rem' }}>ATS scoring & skill gap breakdown</span>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--indigo-light)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.25rem' }}>
+                    Audit Now <ArrowRight size={13} />
+                  </span>
+                </div>
+              </Link>
 
+              <Link to="/dashboard/ai" style={{ textDecoration: 'none' }}>
+                <div style={{
+                  background: 'var(--bg-input)', border: '1px solid var(--b-1)', borderRadius: 'var(--r-md)',
+                  padding: '1rem 0.85rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', transition: 'transform 0.15s, border-color 0.15s'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: 'var(--cyan)', fontWeight: 700, fontSize: '0.88rem' }}>
+                    <Mic size={16} /> Voice Interview
+                  </div>
+                  <span className="muted-text small" style={{ fontSize: '0.78rem' }}>Real-time voice AI interview practice</span>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--cyan)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.25rem' }}>
+                    Start Voice AI <ArrowRight size={13} />
+                  </span>
+                </div>
+              </Link>
+            </div>
+          </div>
 
-        {/* Right Column: Readiness Stats & Account Session */}
+        </div>
+
+        {/* Right Column: Readiness Stats, Milestones & Account Session */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           
           {/* Performance Summary Card */}
@@ -151,23 +210,62 @@ export function UserProfilePage() {
               <div style={{ background: 'var(--bg-input)', padding: '0.85rem', borderRadius: 'var(--r-md)', border: '1px solid var(--b-1)' }}>
                 <span className="muted-text small" style={{ fontSize: '0.78rem' }}>DSA Solved</span>
                 <p style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--indigo-light)', marginTop: '0.2rem' }}>
-                  {stats?.dsaSolved ?? 0} Problems
+                  {dsaSolved} Problems
                 </p>
               </div>
 
               <div style={{ background: 'var(--bg-input)', padding: '0.85rem', borderRadius: 'var(--r-md)', border: '1px solid var(--b-1)' }}>
                 <span className="muted-text small" style={{ fontSize: '0.78rem' }}>Aptitude Solved</span>
                 <p style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--cyan)', marginTop: '0.2rem' }}>
-                  {stats?.modules?.aptitude?.solved ?? 0}
+                  {aptitudeSolved}
                 </p>
               </div>
 
               <div style={{ background: 'var(--bg-input)', padding: '0.85rem', borderRadius: 'var(--r-md)', border: '1px solid var(--b-1)' }}>
                 <span className="muted-text small" style={{ fontSize: '0.78rem' }}>Core CS Solved</span>
                 <p style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--violet)', marginTop: '0.2rem' }}>
-                  {stats?.modules?.core?.solved ?? 0}
+                  {coreSolved}
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* Placement Milestone Checklist */}
+          <div className="card soft-card" style={{ padding: '1.5rem' }}>
+            <h2 className="section-title" style={{ fontSize: '1.1rem', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <ShieldCheck size={18} style={{ color: 'var(--green)' }} /> Readiness Milestones
+            </h2>
+            <p className="muted-text small" style={{ marginBottom: '0.85rem' }}>
+              Track your journey toward 75%+ placement readiness.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+              {milestones.map((m, idx) => (
+                <div key={idx} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '0.55rem 0.75rem', background: 'var(--bg-input)', borderRadius: 'var(--r-md)', border: '1px solid var(--b-1)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+                    {m.completed ? (
+                      <CheckCircle2 size={17} style={{ color: 'var(--green)', flexShrink: 0 }} />
+                    ) : (
+                      <Circle size={17} style={{ color: 'var(--tx-4)', flexShrink: 0 }} />
+                    )}
+                    <div>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 600, color: m.completed ? 'var(--tx-1)' : 'var(--tx-3)', display: 'block' }}>
+                        {m.title}
+                      </span>
+                      <span className="t-xs" style={{ color: 'var(--tx-4)', fontSize: '0.75rem' }}>{m.label}</span>
+                    </div>
+                  </div>
+
+                  {m.link && (
+                    <Link to={m.link} className="btn-link" style={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                      Try →
+                    </Link>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
 
@@ -177,7 +275,7 @@ export function UserProfilePage() {
               <LogOut size={16} style={{ color: 'var(--tx-2)' }} /> Account Session
             </h2>
             <p className="muted-text small" style={{ margin: '0.3rem 0 0.85rem 0', fontSize: '0.82rem' }}>
-              Safely log out of your session on this device.
+              Safely log out of your candidate portal session on this device.
             </p>
             <button
               onClick={logout}

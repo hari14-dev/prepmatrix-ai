@@ -248,70 +248,72 @@ export function TopicSheetPage() {
 
       {/* ── Problem Table ── */}
       <article className="card soft-card" style={{ padding:0, overflow:'hidden', borderRadius: 'var(--r-lg)', border: '1px solid var(--b-2)' }}>
-        <table className="prepmatrix-table">
-          <colgroup>
-            <col style={{ width: 54 }} />
-            <col />
-            <col style={{ width: 110 }} />
-            <col style={{ width: 64 }} />
-            <col style={{ width: 100 }} />
-          </colgroup>
-          <thead>
-            <tr style={{ background: 'rgba(11,15,26,0.6)' }}>
-              <th style={{ textAlign:'center' }}>Status</th>
-              <th>Problem Title</th>
-              <th>Difficulty</th>
-              <th style={{ textAlign:'center' }}>Notes</th>
-              <th style={{ textAlign:'right', paddingRight: '1.25rem' }}>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredProblems.length === 0 ? (
-              <tr>
-                <td colSpan={5} style={{ textAlign:'center', padding:'2.5rem', color:'var(--tx-4)', fontSize:'0.875rem' }}>
-                  {problems.length === 0 ? 'No problems available for this topic yet.' : 'No problems match your current search or filter criteria.'}
-                </td>
+        <div className="prepmatrix-table-wrapper">
+          <table className="prepmatrix-table">
+            <colgroup>
+              <col style={{ width: 54 }} />
+              <col />
+              <col style={{ width: 110 }} />
+              <col style={{ width: 64 }} />
+              <col style={{ width: 100 }} />
+            </colgroup>
+            <thead>
+              <tr style={{ background: 'rgba(11,15,26,0.6)' }}>
+                <th style={{ textAlign:'center' }}>Status</th>
+                <th>Problem Title</th>
+                <th>Difficulty</th>
+                <th style={{ textAlign:'center' }}>Notes</th>
+                <th style={{ textAlign:'right', paddingRight: '1.25rem' }}>Action</th>
               </tr>
-            ) : filteredProblems.map(problem => {
-              const dk = (problem.difficulty||'').toLowerCase();
-              const d  = DIFF[dk] || { label: problem.difficulty, color:'var(--tx-3)', bg: 'transparent' };
-              return (
-                <tr key={problem.id} className={problem.isSolved ? 'row-solved' : ''}>
-                  <td style={{ textAlign:'center' }}>
-                    <SolvedDot solved={Boolean(problem.isSolved)} />
-                  </td>
-                  <td>
-                    <Link className="table-problem-link" to={`/dsa/problem/${encodeURIComponent(problem.slug)}`} style={{ fontWeight: 600, fontSize: '0.9rem' }}>
-                      {problem.title}
-                    </Link>
-                  </td>
-                  <td>
-                    <span className="diff-badge" style={{ color: d.color, background: d.bg, border: `1px solid ${d.color}35`, fontWeight: 700, fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: 'var(--r-sm)' }}>
-                      {d.label}
-                    </span>
-                  </td>
-                  <td style={{ textAlign:'center' }}>
-                    <button
-                      className={`note-btn ${problem.personalNote ? 'note-btn--has' : ''}`}
-                      onClick={() => openNote(problem.id)}
-                      title={problem.personalNote ? 'Edit note' : 'Add note'}
-                      type="button"
-                    >
-                      {problem.personalNote
-                        ? <StickyNote size={14} strokeWidth={1.75} style={{ color: 'var(--indigo-light)' }} />
-                        : <Plus size={14} strokeWidth={2} />}
-                    </button>
-                  </td>
-                  <td style={{ textAlign:'right', paddingRight: '1.25rem' }}>
-                    <Link className="btn btn-primary btn-sm" to={`/dsa/problem/${encodeURIComponent(problem.slug)}`} style={{ fontSize: '0.8rem' }}>
-                      Solve →
-                    </Link>
+            </thead>
+            <tbody>
+              {filteredProblems.length === 0 ? (
+                <tr>
+                  <td colSpan={5} style={{ textAlign:'center', padding:'2.5rem', color:'var(--tx-4)', fontSize:'0.875rem' }}>
+                    {problems.length === 0 ? 'No problems available for this topic yet.' : 'No problems match your current search or filter criteria.'}
                   </td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              ) : filteredProblems.map(problem => {
+                const dk = (problem.difficulty||'').toLowerCase();
+                const d  = DIFF[dk] || { label: problem.difficulty, color:'var(--tx-3)', bg: 'transparent' };
+                return (
+                  <tr key={problem.id} className={problem.isSolved ? 'row-solved' : ''}>
+                    <td style={{ textAlign:'center' }}>
+                      <SolvedDot solved={Boolean(problem.isSolved)} />
+                    </td>
+                    <td>
+                      <Link className="table-problem-link" to={`/dsa/problem/${encodeURIComponent(problem.slug)}`} style={{ fontWeight: 600, fontSize: '0.9rem' }}>
+                        {problem.title}
+                      </Link>
+                    </td>
+                    <td>
+                      <span className="diff-badge" style={{ color: d.color, background: d.bg, border: `1px solid ${d.color}35`, fontWeight: 700, fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: 'var(--r-sm)' }}>
+                        {d.label}
+                      </span>
+                    </td>
+                    <td style={{ textAlign:'center' }}>
+                      <button
+                        className={`note-btn ${problem.personalNote ? 'note-btn--has' : ''}`}
+                        onClick={() => openNote(problem.id)}
+                        title={problem.personalNote ? 'Edit note' : 'Add note'}
+                        type="button"
+                      >
+                        {problem.personalNote
+                          ? <StickyNote size={14} strokeWidth={1.75} style={{ color: 'var(--indigo-light)' }} />
+                          : <Plus size={14} strokeWidth={2} />}
+                      </button>
+                    </td>
+                    <td style={{ textAlign:'right', paddingRight: '1.25rem' }}>
+                      <Link className="btn btn-primary btn-sm" to={`/dsa/problem/${encodeURIComponent(problem.slug)}`} style={{ fontSize: '0.8rem' }}>
+                        Solve →
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </article>
 
       {/* ── Note Modal ── */}

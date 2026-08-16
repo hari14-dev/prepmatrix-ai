@@ -1,6 +1,10 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000';
 
 export async function apiRequest(path, options = {}, retries = 2) {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    throw new Error('You appear to be offline. Please check your internet connection and try again.');
+  }
+
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       method: options.method ?? 'GET',
@@ -24,14 +28,18 @@ export async function apiRequest(path, options = {}, retries = 2) {
       await new Promise(r => setTimeout(r, 600));
       return apiRequest(path, options, retries - 1);
     }
+    if (isNetworkErr) {
+      throw new Error('Network error — unable to reach PrepMatrix AI servers. Please check your connection.');
+    }
     throw err;
   }
 }
 
-// For multipart/form-data uploads (e.g. resume file upload). No Content-Type
-// header is set manually — the browser sets it (with the correct boundary)
-// automatically when the body is a FormData instance.
 export async function apiUpload(path, formData, { token } = {}, retries = 2) {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    throw new Error('You appear to be offline. Please check your internet connection and try again.');
+  }
+
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       method: 'POST',
@@ -54,6 +62,10 @@ export async function apiUpload(path, formData, { token } = {}, retries = 2) {
       await new Promise(r => setTimeout(r, 600));
       return apiUpload(path, formData, { token }, retries - 1);
     }
+    if (isNetworkErr) {
+      throw new Error('Network error — unable to upload file. Please check your connection.');
+    }
     throw err;
   }
 }
+

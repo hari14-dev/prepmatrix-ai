@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Calculator, Code2, BookOpen, Trophy, Bot, ChevronRight } from 'lucide-react';
 import { useBreadcrumbTrail } from '../../context/BreadcrumbContext.jsx';
+import { OfflineBanner } from '../common/OfflineBanner.jsx';
 
 const navItems = [
   { label: 'Home',     path: '/dashboard',          Icon: LayoutDashboard },
@@ -28,6 +29,8 @@ export function AppShell({ user, onLogout, children, hideSidebar=false, mainOver
   return (
     <div className={mainOverflow === 'hidden' ? 'dashboard-page focus-mode' : 'dashboard-page'}
       style={mainOverflow === 'hidden' ? { height:'100vh', overflow:'hidden' } : undefined}>
+
+      <OfflineBanner />
 
       <header className={mainOverflow === 'hidden' ? 'dashboard-topbar focus-topbar' : 'dashboard-topbar'}>
         <div className="row">

@@ -944,9 +944,9 @@ input[type="range"] { accent-color:var(--indigo); }
   .card { padding:1rem; }
   .auth-card { padding:1.25rem; }
 
-  /* Buttons */
-  .btn { padding:0.45rem 0.9rem; font-size:0.82rem; }
-  .btn-sm { padding:0.3rem 0.65rem; font-size:0.75rem; }
+  /* Buttons & Touch Targets */
+  .btn { padding:0.5rem 0.9rem; font-size:0.82rem; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; }
+  .btn-sm { padding:0.35rem 0.7rem; font-size:0.75rem; min-height: 34px; }
 
   /* AI Suite */
   .ai-suite-grid { grid-template-columns:1fr; }
@@ -958,6 +958,13 @@ input[type="range"] { accent-color:var(--indigo); }
 
   /* Concept layout */
   .concept-layout { grid-template-columns:1fr; }
+
+  /* Profile Grid */
+  .profile-grid-container { grid-template-columns:1fr !important; }
+
+  /* PrepMatrix Table mobile scroll */
+  .prepmatrix-table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; }
+
 
   /* Tables — horizontal scroll */
   .history-table-wrap { font-size:0.8rem; }

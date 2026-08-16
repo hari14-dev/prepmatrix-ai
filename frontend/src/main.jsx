@@ -5,15 +5,18 @@ import App from './App.jsx';
 import './index.css';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { BreadcrumbProvider } from './context/BreadcrumbContext.jsx';
+import { ErrorBoundary } from './components/common/ErrorBoundary.jsx';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <BreadcrumbProvider>
-          <App />
-        </BreadcrumbProvider>
-      </AuthProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <BreadcrumbProvider>
+            <App />
+          </BreadcrumbProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   </React.StrictMode>
 );
