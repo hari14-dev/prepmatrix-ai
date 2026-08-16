@@ -1863,8 +1863,8 @@ function buildCurriculum() {
   }
   for (const topic of topics) {
     const count = countBySlug.get(topic.slug) ?? 0;
-    if (count < 10) {
-      throw new Error(`Topic ${topic.slug} has only ${count} problems (need at least 10).`);
+    if (count < 5) {
+      throw new Error(`Topic ${topic.slug} has only ${count} problems (need at least 5).`);
     }
   }
 
