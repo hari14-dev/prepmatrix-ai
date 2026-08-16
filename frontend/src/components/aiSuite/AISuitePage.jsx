@@ -23,7 +23,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { apiRequest, apiUpload } from '../../lib/api.js';
-import { Bot, Mic, MicOff, BarChart2, Trophy, TrendingUp, BookOpen, CheckCircle2, XCircle, Square, FileText } from 'lucide-react';
+import { Bot, Mic, MicOff, BarChart2, Trophy, TrendingUp, BookOpen, CheckCircle2, XCircle, Square, FileText, AlertCircle, WifiOff } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 
 /* ── Voice gender selector helper ─────────────────────── */
@@ -131,7 +131,8 @@ function ResumeAnalyzer({ sharedResumeText, onResumeChange }) {
       });
       setResult(res.data);
     } catch (e) {
-      setError(e.message || 'Audit failed. Please try again.');
+      const isOff = typeof navigator !== 'undefined' && !navigator.onLine;
+      setError(isOff ? 'You are offline. Please check your internet connection and try again.' : (e.message || 'Audit failed due to network disconnection. Please try again.'));
     } finally {
       setIsRunning(false);
     }
@@ -150,7 +151,8 @@ function ResumeAnalyzer({ sharedResumeText, onResumeChange }) {
       onResumeChange(res.data.resumeText);
       setUploadedFileName(res.data.fileName);
     } catch (err) {
-      setUploadError(err.message || 'Could not read this file. Try pasting the text instead.');
+      const isOff = typeof navigator !== 'undefined' && !navigator.onLine;
+      setUploadError(isOff ? 'You are offline. Please check your internet connection and try again.' : (err.message || 'Could not upload file due to network disconnection. Try pasting the text instead.'));
     } finally {
       setIsUploading(false);
     }
@@ -573,7 +575,8 @@ function MockInterview({ sharedResumeText, onResumeChange, mode = 'mock' }) {
         setTimeout(() => speakAndListen(opening.text, voiceMode), 500);
       }
     } catch (e) {
-      setError(e.message || 'Failed to start interview');
+      const isOff = typeof navigator !== 'undefined' && !navigator.onLine;
+      setError(isOff ? 'Network disconnected. You are offline. Please check your internet connection.' : (e.message || 'Network disconnected. Failed to start interview.'));
     } finally {
       setIsStarting(false);
     }
@@ -611,7 +614,8 @@ function MockInterview({ sharedResumeText, onResumeChange, mode = 'mock' }) {
         setTimeout(() => speakAndListen(interviewerMsg, voiceMode && !res.data.isQuestionFlowComplete), 300);
       }
     } catch (e) {
-      setError(e.message || 'Failed to evaluate answer');
+      const isOff = typeof navigator !== 'undefined' && !navigator.onLine;
+      setError(isOff ? 'Network disconnected. You are offline. Please check your internet connection.' : (e.message || 'Network disconnected. Failed to evaluate answer.'));
       setStatusMsg('');
     } finally {
       setIsSubmitting(false);
@@ -629,7 +633,8 @@ function MockInterview({ sharedResumeText, onResumeChange, mode = 'mock' }) {
       });
       setFinalReport(res.data.report);
     } catch (e) {
-      setError(e.message || 'Failed to generate report');
+      const isOff = typeof navigator !== 'undefined' && !navigator.onLine;
+      setError(isOff ? 'Network disconnected. You are offline. Please check your internet connection.' : (e.message || 'Network disconnected. Failed to generate report.'));
     } finally {
       setIsFinishing(false); setStatusMsg('');
     }
@@ -1287,17 +1292,18 @@ function DirectVoiceAssistant({ sharedResumeText }) {
     setTimeout(() => speakText(greeting, true), 400);
   };
 
-  const handleTopicSelect = async (topicName) => {
+  const handleTopicSelect = async (topicName, promptMessage) => {
     if (canSpeak) window.speechSynthesis.cancel();
     setIsSpeaking(false);
     stopListening();
-    
-    const text = `Let's switch to ${topicName}`;
+
+    const text = promptMessage || `Let's switch to ${topicName}`;
     const newTurns = [...turns, { role: 'candidate', text }];
     setTurns(newTurns);
     setAnswerDraft('');
     setInterimText('');
     setIsThinking(true);
+    setError('');
     setStatusMsg(`Switching to ${topicName}…`);
 
     try {
@@ -1309,8 +1315,10 @@ function DirectVoiceAssistant({ sharedResumeText }) {
       setTurns(prev => [...prev, { role: 'interviewer', text: aiReply }]);
       setIsThinking(false);
       speakText(aiReply, true);
-    } catch {
+    } catch (err) {
       setIsThinking(false);
+      const isOff = typeof navigator !== 'undefined' && !navigator.onLine;
+      setError(isOff ? 'Network disconnected. You are offline. Please check your internet connection.' : (err?.message || 'Network disconnected. Please check your internet connection.'));
       startListening();
     }
   };
@@ -1328,6 +1336,7 @@ function DirectVoiceAssistant({ sharedResumeText }) {
     setAnswerDraft('');
     setInterimText('');
     setIsThinking(true);
+    setError('');
     setStatusMsg('AI Tutor is thinking…');
 
     try {
@@ -1339,10 +1348,9 @@ function DirectVoiceAssistant({ sharedResumeText }) {
       const aiReply = res.reply || `Got it! Tell me more about your thoughts on this topic.`;
       setTurns(prev => [...prev, { role: 'interviewer', text: aiReply }]);
       speakText(aiReply, true);
-    } catch {
-      const fallbackReply = `That's a great topic! Can you explain the main technical concept behind it?`;
-      setTurns(prev => [...prev, { role: 'interviewer', text: fallbackReply }]);
-      speakText(fallbackReply, true);
+    } catch (err) {
+      const isOff = typeof navigator !== 'undefined' && !navigator.onLine;
+      setError(isOff ? 'Network disconnected. You are offline. Please check your internet connection.' : (err?.message || 'Network disconnected. Please check your internet connection.'));
     } finally {
       setIsThinking(false);
     }
@@ -1384,6 +1392,13 @@ function DirectVoiceAssistant({ sharedResumeText }) {
 
   return (
     <div className="card soft-card" style={{ padding: '1.5rem', minHeight: 500 }}>
+      {error && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 0.85rem', borderRadius: 'var(--r-md)', background: 'rgba(244,63,94,0.12)', border: '1px solid rgba(244,63,94,0.3)', color: '#fca5a5', fontSize: '0.82rem', marginBottom: '1rem' }}>
+          <AlertCircle size={15} style={{ flexShrink: 0 }} />
+          <span>{error}</span>
+        </div>
+      )}
+
       {!isActive && turns.length === 0 ? (
         /* Initial Centered Landing Stage */
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 1.5rem', textAlign: 'center', gap: '1.5rem' }}>
