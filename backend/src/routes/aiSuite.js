@@ -324,7 +324,8 @@ async function evaluateAnswer({ questionText, answerText, targetRole, difficulty
     `Question: ${questionText}`,
     `Answer: ${answerText}`,
     '',
-    'Note: If candidate explicitly asks for help, hints, simpler questions, or topic changes, do not give a harsh 0 — score communication/confidence fairly for self-awareness.',
+    'Note 1: Answer comes from browser Speech-to-Text transcription. Ignore minor phonetic typos or homophones (e.g. "linked list" -> "link list", "SQL" -> "sequel", "cache" -> "cash"). Contextually evaluate what the candidate intended to convey.',
+    'Note 2: If candidate explicitly asks for help, hints, simpler questions, or topic changes, do not give a harsh 0 — score communication/confidence fairly for self-awareness.',
     '',
     'Return strict JSON:',
     '{',
@@ -925,7 +926,11 @@ aiSuiteRouter.post('/tutor/chat', async (req, res, next) => {
       '     3. Then ask the next technical question on the topic!',
       '6. DIRECT TECHNICAL PLACEMENT QUESTIONS: Ask clear, practical technical interview questions (e.g. Hash Tables, Arrays, Linked Lists, Stacks, OS Processes/Threads, SQL Joins). Avoid meta-questions like "What do you think is challenging?".',
       '7. PATIENCE ON PAUSE: If candidate says "wait", "give me a second", "hold on", or asks for time: Warmly reply "Take all the time you need! I am right here whenever you are ready."',
-      '8. CONVERSATIONAL VOICE FORMAT: Write in clean, natural spoken English (max 60 words). No markdown, bullet points, or code blocks since this is spoken aloud via Text-to-Speech.'
+      '8. CONVERSATIONAL VOICE FORMAT: Write in clean, natural spoken English (max 60 words). No markdown, bullet points, or code blocks since this is spoken aloud via Text-to-Speech.',
+      '9. SPEECH RECOGNITION TYPO ROBUSTNESS & INTENT RECOVERY (CRITICAL):',
+      '   - Spoken input comes from browser Speech-to-Text, which can have minor phonetic misrecognitions or homophones (e.g. "linked list" transcribed as "link list", "SQL" as "sequel", "cache" as "cash", "array" as "a ray", "tree" as "three", "stack" as "tack").',
+      '   - Contextually infer what technical concept the candidate intended to say and respond naturally to their core technical message.',
+      '   - NEVER criticize or point out speech recognition typos. Focus 100% on their core technical understanding!'
     ].join('\n');
 
     const aiReply = await groqChat(
